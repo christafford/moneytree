@@ -1,30 +1,17 @@
-﻿using Binance.Net.Clients;
-using Binance.Net.Objects;
-using CryptoExchange.Net.Authentication;
-using CryptoExchange.Net.Objects;
-using Microsoft.Extensions.Configuration;
+﻿using CStafford.Moneytree.Application;
+using CStafford.Moneytree.Services;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
-var config = new ConfigurationBuilder()
-    .AddUserSecrets<Program>()
+using var host = Host.CreateDefaultBuilder(args)
+    .ConfigureServices((_, services) =>
+    {
+        services.AddAutoMapper(typeof(Program));
+        services.AddScoped<BinanceApiService>()
+                .AddScoped<DownloadTicks>();
+    })
     .Build();
 
-var apiKey = config["Binance:ApiKey"];
-var apiSecret = config["Binance:ApiKeySecret"];
-
-var client = new BinanceClient(new BinanceClientOptions()
-{
-    ApiCredentials = new ApiCredentials(apiKey, apiSecret),
-    SpotApiOptions = new BinanceApiClientOptions
-    {
-        BaseAddress = "http://api.binance.us",
-        RateLimitingBehaviour = RateLimitingBehaviour.Fail
-    }
-});
-
-var candlesticks = client.SpotApi.CommonSpotClient.GetKlinesAsync(
-    "BTCUSD",
-    TimeSpan.FromMinutes(1),
-    DateTime.Now.AddDays(-2),
-    DateTime.Now.AddDays(-1)).Result;
-
-Console.WriteLine($"Found {candlesticks.Data.Count()} candlesticks (should be {60*24}");
+using var scope = host.Services.CreateAsyncScope();
+await scope.ServiceProvider.GetService<DownloadTicks>().Run();
+await host.RunAsync();
