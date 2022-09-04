@@ -1,0 +1,7 @@
+MoneyTree:
+  BinanceAPIKey: A61Iz10g8h4W7a3kCX91UIxxDaLT9kO6ioCnJWFODpOAB0SvWFQHEWPySiUR21Fk
+  BinanceAPISecret: jH4kTojM8Hnfh2BHPuPuEpiGnCCjOkEf8O281bmNQ6NrlpRr6QEBGb27IiqN7dzT
+  DbServer: 127.0.0.1
+  DbPort: 3306
+  DbUsername: money-man
+  DbPassword: qwe123

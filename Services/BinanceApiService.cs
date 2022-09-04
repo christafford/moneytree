@@ -5,20 +5,23 @@ using CryptoExchange.Net.Authentication;
 using CryptoExchange.Net.Objects;
 using CStafford.Moneytree.Configuration;
 using CStafford.Moneytree.Models;
+using Microsoft.Extensions.Options;
 
 namespace CStafford.Moneytree.Services
 {
     public class BinanceApiService
     {
-        private BinanceClient _client;
-        private IMapper _mapper;
+        private readonly BinanceClient _client;
+        private readonly IMapper _mapper;
+        private readonly Settings _config;
 
-        public BinanceApiService(IMapper mapper)
+        public BinanceApiService(IOptions<Settings> config, IMapper mapper)
         {
+            _config = config.Value;
             _mapper = mapper;
             _client = new BinanceClient(new BinanceClientOptions()
             {
-                ApiCredentials = new ApiCredentials(Settings.GetApiKey(), Settings.GetApiSecret()),
+                ApiCredentials = new ApiCredentials(_config.BinanceAPIKey, _config.BinanceAPISecret),
                 SpotApiOptions = new BinanceApiClientOptions
                 {
                     BaseAddress = "http://api.binance.us",
@@ -27,10 +30,10 @@ namespace CStafford.Moneytree.Services
             });
         }
 
-        public async Task<IEnumerable<Tick>> GetTicks(string symbol, DateTime startTime)
+        public async Task<IEnumerable<Models.Tick>> GetTicks(Symbol symbol, DateTime startTime)
         {
             var klinesResponse = await _client.SpotApi.CommonSpotClient.GetKlinesAsync(
-                symbol,
+                symbol.Name,
                 TimeSpan.FromMinutes(1),
                 startTime: startTime,
                 limit: 1000
@@ -38,15 +41,22 @@ namespace CStafford.Moneytree.Services
 
             if (klinesResponse.Data == null)
             {
-                throw new Exception(klinesResponse.ToString());
+                throw new Exception(klinesResponse.Error?.Message);
             }
 
-            return klinesResponse.Data.Select(x =>
+            return klinesResponse.Data.Select(_mapper.Map<Models.Tick>);
+        }
+
+        public async Task<IEnumerable<Models.Symbol>> GetSymbols()
+        {
+            var symbolsResponse = await _client.SpotApi.CommonSpotClient.GetSymbolsAsync();
+
+            if (symbolsResponse.Data == null)
             {
-                var tick = _mapper.Map<Tick>(x);
-                tick.Symbol = symbol;
-                return tick;
-            });
+                throw new Exception(symbolsResponse.Error?.Message);
+            }
+
+            return symbolsResponse.Data.Select(_mapper.Map<Models.Symbol>);
         }
     }
 }

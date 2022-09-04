@@ -1,6 +1,4 @@
 using AutoMapper;
-using CryptoExchange.Net.CommonObjects;
-using CStafford.Moneytree.Models;
 
 namespace CStafford.Moneytree.Mapping
 {
@@ -8,7 +6,8 @@ namespace CStafford.Moneytree.Mapping
     {
         public MappingProfile()
         {
-            CreateMap<Kline, Tick>();
+            CreateMap<CryptoExchange.Net.CommonObjects.Kline, CStafford.Moneytree.Models.Tick>();
+            CreateMap<CryptoExchange.Net.CommonObjects.Symbol, CStafford.Moneytree.Models.Symbol>();
         }
     }
 }

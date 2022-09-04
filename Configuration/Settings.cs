@@ -1,15 +1,12 @@
-using Microsoft.Extensions.Configuration;
-
 namespace CStafford.Moneytree.Configuration
 {
-    public static class Settings
+    public class Settings
     {
-        private static Lazy<IConfigurationRoot> _config = new Lazy<IConfigurationRoot>(() =>
-            new ConfigurationBuilder()
-                .AddUserSecrets<Program>()
-                .Build());
-
-        public static string GetApiKey() => _config.Value["Binance:ApiKey"];
-        public static string GetApiSecret() => _config.Value["Binance:ApiKeySecret"];
+        public string BinanceAPIKey { get; set; }
+        public string BinanceAPISecret { get; set; }
+        public string DbServer { get; set; }
+        public string DbPort { get; set; }
+        public string DbUsername { get; set; }
+        public string DbPassword { get; set; }
     }
 }
