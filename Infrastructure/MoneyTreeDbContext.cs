@@ -1,4 +1,5 @@
 using System.Data;
+using System.Data.Common;
 using CStafford.Moneytree.Models;
 using Dapper;
 using Dapper.Contrib.Extensions;
@@ -14,14 +15,11 @@ namespace CStafford.Moneytree.Infrastructure
         public DbSet<Tick> Ticks { get; set; }
         public DbSet<Symbol> Symbols { get; set; }
         public DbSet<PullDown> PullDowns { get; set; }
+        public DbSet<Chart> Charts { get; set; }
 
         public async Task Insert(PullDown pulldown)
         {
-            var connection = Database.GetDbConnection();
-            if (connection.State == ConnectionState.Closed)
-            {
-                await connection.OpenAsync();
-            }
+            var connection = GetConnection();
             using var transaction = connection.BeginTransaction();
             await connection.InsertAsync(pulldown, transaction);
             await transaction.CommitAsync();
@@ -29,14 +27,25 @@ namespace CStafford.Moneytree.Infrastructure
 
         public async Task Insert(Tick tick)
         {
-            var connection = Database.GetDbConnection();
-            if (connection.State == ConnectionState.Closed)
-            {
-                await connection.OpenAsync();
-            }
+            var connection = GetConnection();
             using var transaction = connection.BeginTransaction();
             await connection.InsertAsync(tick, transaction);
             await transaction.CommitAsync();
+        }
+
+        private DbConnection GetConnection()
+        {
+            DbConnection connection;
+            lock (Database)
+            {
+                connection = Database.GetDbConnection();
+                if (connection.State == ConnectionState.Closed)
+                {
+                    connection.Open();
+                }
+            }
+
+            return connection;
         }
     }
 }

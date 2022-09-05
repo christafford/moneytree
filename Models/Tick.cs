@@ -1,9 +1,13 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Dapper.Contrib.Extensions;
+using Microsoft.EntityFrameworkCore;
 
 namespace CStafford.Moneytree.Models
 {
+
+    [Index(nameof(OpenTime))]
+    [Index(nameof(SymbolName), nameof(OpenTime))]
     public class Tick
     {
         [Dapper.Contrib.Extensions.Key]
