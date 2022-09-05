@@ -36,7 +36,6 @@ namespace CStafford.Moneytree.Application
                 var ticks = await _dbContext.Ticks
                     .Where(x => x.OpenTime >= evaluationTime.Subtract(TimeSpan.FromMinutes(chart.MinutesForMarketAnalysis)))
                     .Where(x => x.OpenTime <= evaluationTime)
-                    .OrderBy(x => x.OpenTime)
                     .ToListAsync();
 
                 var symbols = ticks.Select(x => x.SymbolName).Distinct();
@@ -49,33 +48,55 @@ namespace CStafford.Moneytree.Application
                         .Any())
                     .ToHashSet();
 
-                var filteredMarketTicks = ticks
+                ticks = ticks
                     .Where(x => passesExistenceValidation.Contains(x.SymbolName))
+                    .OrderBy(x => x.OpenTime)
                     .ToList();
+
+                symbols = ticks.Select(x => x.SymbolName).Distinct();
                 
-                var marketMovers = filteredMarketTicks
+                var marketMovers = ticks
                     .Select(x => x.SymbolName)
                     .Distinct()
-                    .OrderByDescending(x => filteredMarketTicks
+                    .OrderByDescending(x => ticks
                         .Where(y => y.SymbolName == x)
                         .Sum(y => y.ClosePrice * y.Volume))
                     .Take(chart.NumberOfHighestTradedForMarketAnalysis);
 
                 if (marketMovers.All(x =>
                 {
-                    var first = filteredMarketTicks.Where(y => y.SymbolName == x).First();
-                    var last = filteredMarketTicks.Where(y => y.SymbolName == x).Last();
+                    var first = ticks.Where(y => y.SymbolName == x).First();
+                    var last = ticks.Where(y => y.SymbolName == x).Last();
 
                     return first.OpenPrice < last.ClosePrice;
                 }))
                 {
-                    var sortedSymbols = symbols.OrderBy(x =>
-                    {
-                        var first = (ticks.First(y => y.SymbolName == x)).OpenPrice;
-                        var last = (ticks.Last(y => y.SymbolName == x)).ClosePrice;
+                    var sortedSymbols = symbols
+                        .OrderByDescending(x =>
+                        {
+                            var first = (ticks.First(y => y.SymbolName == x)).OpenPrice;
+                            var last = (ticks.Last(y => y.SymbolName == x)).ClosePrice;
 
-                        return (last - first) / first;
-                    });
+                            return (last - first) / first;
+                        })
+                        .ToList();
+
+                    string symbolToBuy = null;
+
+                    // i'm being stupid at this point, fix later
+                    for (int i = 0; i < sortedSymbols.Count(); i++)
+                    {
+                        if ((i / (decimal) sortedSymbols.Count()) < chart.PercentagePlacementForSecurityPick)
+                        {
+                            symbolToBuy = sortedSymbols[i];
+                        }
+                        else
+                        {
+                            break;
+                        }
+                    }
+
+                    toReturn.Add((ActionToTake.Buy, symbolToBuy));
                 }
             }
 
