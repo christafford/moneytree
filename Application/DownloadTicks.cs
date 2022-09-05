@@ -27,16 +27,15 @@ namespace CStafford.Moneytree.Application
             var symbols = await GetSymbols();
             _logger.LogInformation("Retrieved {count} symbols", symbols.Count());
 
-            while(true)
-            {
-                foreach (var symbol in symbols)
-                {
-                    if (symbol.Name == "TUSD")
-                    {
-                        _logger.LogInformation("Skipping TUSD for unkown reasons");
-                        continue;
-                    }
+            var symbolsDone = new HashSet<string>();
 
+            // no idea why but this isn't valid
+            symbolsDone.Add("TUSD");
+
+            while (symbols.Any(x => !symbolsDone.Contains(x.Name)))
+            {
+                foreach (var symbol in symbols.Where(x => !symbolsDone.Contains(x.Name)))
+                {
                     var lastRunQuery = _context.PullDowns
                         .Where(x => x.SymbolName == symbol.Name)
                         .OrderByDescending(x => x.TickResponseEnd)
@@ -47,7 +46,14 @@ namespace CStafford.Moneytree.Application
 
                     _logger.LogInformation("Symbol {symbol} last response date {lastRun}", symbol.Name, lastRunEnded.ToString("g"));
 
-                    var ticks = await _api.GetTicks(symbol, lastRunEnded);
+                    var ticks = await _api.GetTicks(symbol, lastRunEnded.AddMinutes(1));
+
+                    if (!ticks.Any())
+                    {
+                        symbolsDone.Add(symbol.Name);
+                        _logger.LogInformation("All caught up with symbol {symbol}", symbol.Name);
+                        continue;
+                    }
 
                     var minResponseTime = ticks.Min(x => x.OpenTime);
                     var maxResponseTime = ticks.Max(x => x.OpenTime);
@@ -55,24 +61,20 @@ namespace CStafford.Moneytree.Application
                     var pulldown = new PullDown
                     {
                         RunTime = DateTime.UtcNow,
-                        Symbol = symbol,
+                        SymbolName = symbol.Name,
                         TickRequestTime = lastRunEnded,
                         TickResponseStart = minResponseTime,
                         TickResponseEnd = maxResponseTime
                     };
 
-                    _context.PullDowns.Add(pulldown);
-                    
-                    await _context.SaveChangesAsync();
+                    await _context.Insert(pulldown);
 
                     foreach (var tick in ticks)
                     {
                         tick.PullDownId = pulldown.Id;
                         tick.SymbolName = symbol.Name;
-                        _context.Ticks.Add(tick);
+                        await _context.Insert(tick);
                     }
-
-                    await _context.SaveChangesAsync();
 
                     _logger.LogInformation("Symbol {symbol}: saved {number} ticks from {start} to {end}",
                                         symbol.Name,
@@ -81,6 +83,8 @@ namespace CStafford.Moneytree.Application
                                         maxResponseTime.ToString("g"));
                 }
             }
+
+            _logger.LogInformation("Finished - all ticks up to present recorded for all symbols");
         }
 
         private async Task<IEnumerable<Symbol>> GetSymbols()
