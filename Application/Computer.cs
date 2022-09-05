@@ -23,13 +23,13 @@ namespace CStafford.Moneytree.Application
             _logger = logger;
         }
 
-        public async Task<List<(ActionToTake action, string relevantSymbol)>> EvaluateMarket(
+        public async Task<List<(ActionToTake action, string relevantSymbol, decimal? usdAtPurchase)>> EvaluateMarket(
             Chart chart,
             bool moneyToBurn,
             List<(string symbol, decimal usdAtPurchase)> assets,
             DateTime evaluationTime)
         {
-            var toReturn = new List<(ActionToTake action, string relevantSymbol)>();
+            var toReturn = new List<(ActionToTake action, string relevantSymbol, decimal? usdAtPurchase)>();
 
             if (moneyToBurn)
             {
@@ -96,7 +96,26 @@ namespace CStafford.Moneytree.Application
                         }
                     }
 
-                    toReturn.Add((ActionToTake.Buy, symbolToBuy));
+                    toReturn.Add((
+                        ActionToTake.Buy,
+                        symbolToBuy,
+                        ticks.Where(x => x.SymbolName == symbolToBuy).Last().ClosePrice));
+                }
+            }
+
+            foreach (var asset in assets)
+            {
+                var tick = _dbContext.Ticks
+                    .Where(x => x.SymbolName == asset.symbol)
+                    .Where(x => x.OpenTime <= evaluationTime)
+                    .OrderByDescending(x => x.OpenTime)
+                    .First();
+                
+                var diff = (tick.ClosePrice - asset.usdAtPurchase) / asset.usdAtPurchase;
+                
+                if (diff >= chart.ThresholdToRiseForSell || diff <= chart.ThresholdToDropForSell)
+                {
+                    toReturn.Add((ActionToTake.Sell, asset.symbol, default));
                 }
             }
 

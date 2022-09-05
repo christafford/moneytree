@@ -9,7 +9,7 @@ namespace CStafford.Moneytree.Models
         public int NumberOfHighestTradedForMarketAnalysis { get; set; }
         public int DaysSymbolsMustExist { get; set; }
         public decimal PercentagePlacementForSecurityPick { get; set; }
-        public decimal ThreshholdToRiseForSell { get; set; }
-        public decimal ThreshholdToDropForSell { get; set; }
+        public decimal ThresholdToRiseForSell { get; set; }
+        public decimal ThresholdToDropForSell { get; set; }
     }
 }
