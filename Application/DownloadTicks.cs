@@ -1,6 +1,7 @@
 using CStafford.Moneytree.Infrastructure;
 using CStafford.Moneytree.Models;
 using CStafford.Moneytree.Services;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace CStafford.Moneytree.Application
@@ -10,7 +11,7 @@ namespace CStafford.Moneytree.Application
         private BinanceApiService _api;
         private ILogger<DownloadTicks> _logger;
         private MoneyTreeDbContext _context;
-        private static readonly DateTime InitialStart = new DateTime(2018, 1, 1);
+        private static readonly DateTime InitialStart = new DateTime(2019, 9, 6);
 
         public DownloadTicks(
             BinanceApiService api,
@@ -27,6 +28,28 @@ namespace CStafford.Moneytree.Application
             var symbols = await GetSymbols();
             _logger.LogInformation("Retrieved {count} symbols", symbols.Count());
 
+            // fix up prior run
+            var unfinishedPullDowns = await _context.PullDowns.Where(x => !x.Finished).ToListAsync();
+            foreach (var unfinished in unfinishedPullDowns)
+            {
+                unfinished.TickResponseEnd = (await _context.Ticks
+                    .Where(x => x.PullDownId == unfinished.Id)
+                    .MaxAsync(x => x.OpenTime));
+
+                unfinished.Finished = true;
+                await _context.Update(unfinished);
+            }
+
+            var lastRun = new Dictionary<int, DateTime>();
+            foreach (var symbolId in symbols.Select(x => x.Id))
+            {
+                var maxDate = await _context.PullDowns
+                    .Where(x => x.SymbolId == symbolId)
+                    .MaxAsync(x => (DateTime?) x.TickResponseEnd);
+                    
+                lastRun[symbolId] = maxDate ?? InitialStart;
+            }
+
             var symbolsDone = new HashSet<string>();
 
             // no idea why but this isn't valid
@@ -36,13 +59,7 @@ namespace CStafford.Moneytree.Application
             {
                 foreach (var symbol in symbols.Where(x => !symbolsDone.Contains(x.Name)))
                 {
-                    var lastRunQuery = _context.PullDowns
-                        .Where(x => x.SymbolName == symbol.Name)
-                        .OrderByDescending(x => x.TickResponseEnd)
-                        .Select(x => (DateTime?) x.TickResponseEnd)
-                        .FirstOrDefault();
-                    
-                    var lastRunEnded = lastRunQuery ?? InitialStart;
+                    var lastRunEnded = lastRun[symbol.Id];
 
                     _logger.LogInformation("Symbol {symbol} last response date {lastRun}", symbol.Name, lastRunEnded.ToString("g"));
 
@@ -61,7 +78,7 @@ namespace CStafford.Moneytree.Application
                     var pulldown = new PullDown
                     {
                         RunTime = DateTime.UtcNow,
-                        SymbolName = symbol.Name,
+                        SymbolId = symbol.Id,
                         TickRequestTime = lastRunEnded,
                         TickResponseStart = minResponseTime,
                         TickResponseEnd = maxResponseTime
@@ -72,9 +89,13 @@ namespace CStafford.Moneytree.Application
                     foreach (var tick in ticks)
                     {
                         tick.PullDownId = pulldown.Id;
-                        tick.SymbolName = symbol.Name;
+                        tick.SymbolId = symbol.Id;
                         await _context.Insert(tick);
                     }
+
+                    pulldown.Finished = true;
+                    await _context.Update(pulldown);
+                    lastRun[symbol.Id] = maxResponseTime;
 
                     _logger.LogInformation("Symbol {symbol}: saved {number} ticks from {start} to {end}",
                                         symbol.Name,
@@ -94,9 +115,8 @@ namespace CStafford.Moneytree.Application
             symbols
                 .Where(x => !inDb.ContainsKey(x.Name))
                 .ToList()
-                .ForEach(x => _context.Symbols.Add(x));
-            await _context.SaveChangesAsync();
-            return symbols;
+                .ForEach(x => _context.Insert(x).GetAwaiter().GetResult());
+            return await _context.Symbols.ToListAsync();
         }
     }
 }

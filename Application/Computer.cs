@@ -30,7 +30,8 @@ namespace CStafford.Moneytree.Application
             DateTime evaluationTime)
         {
             var toReturn = new List<(ActionToTake action, string relevantSymbol, decimal? usdAtPurchase)>();
-
+            var symbolIdToName = _dbContext.Symbols.ToDictionary(x => x.Id, x => x.Name);
+            
             if (moneyToBurn)
             {
                 var ticks = await _dbContext.Ticks
@@ -38,35 +39,35 @@ namespace CStafford.Moneytree.Application
                     .Where(x => x.OpenTime <= evaluationTime)
                     .ToListAsync();
 
-                var symbols = ticks.Select(x => x.SymbolName).Distinct();
+                var symbols = ticks.Select(x => x.SymbolId).Distinct();
                 var validationDate = evaluationTime.Subtract(TimeSpan.FromDays(chart.DaysSymbolsMustExist));
 
                 var passesExistenceValidation = symbols
                     .Where(x => _dbContext.Ticks
-                        .Where(y => y.SymbolName == x)
+                        .Where(y => y.SymbolId == x)
                         .Where(y => y.OpenTime <= validationDate)
                         .Any())
                     .ToHashSet();
 
                 ticks = ticks
-                    .Where(x => passesExistenceValidation.Contains(x.SymbolName))
+                    .Where(x => passesExistenceValidation.Contains(x.SymbolId))
                     .OrderBy(x => x.OpenTime)
                     .ToList();
 
-                symbols = ticks.Select(x => x.SymbolName).Distinct();
+                symbols = ticks.Select(x => x.SymbolId).Distinct();
                 
                 var marketMovers = ticks
-                    .Select(x => x.SymbolName)
+                    .Select(x => x.SymbolId)
                     .Distinct()
                     .OrderByDescending(x => ticks
-                        .Where(y => y.SymbolName == x)
+                        .Where(y => y.SymbolId == x)
                         .Sum(y => y.ClosePrice * y.Volume))
                     .Take(chart.NumberOfHighestTradedForMarketAnalysis);
 
                 if (marketMovers.All(x =>
                 {
-                    var first = ticks.Where(y => y.SymbolName == x).First();
-                    var last = ticks.Where(y => y.SymbolName == x).Last();
+                    var first = ticks.Where(y => y.SymbolId == x).First();
+                    var last = ticks.Where(y => y.SymbolId == x).Last();
 
                     return first.OpenPrice < last.ClosePrice;
                 }))
@@ -74,21 +75,21 @@ namespace CStafford.Moneytree.Application
                     var sortedSymbols = symbols
                         .OrderByDescending(x =>
                         {
-                            var first = (ticks.First(y => y.SymbolName == x)).OpenPrice;
-                            var last = (ticks.Last(y => y.SymbolName == x)).ClosePrice;
+                            var first = (ticks.First(y => y.SymbolId == x)).OpenPrice;
+                            var last = (ticks.Last(y => y.SymbolId == x)).ClosePrice;
 
                             return (last - first) / first;
                         })
                         .ToList();
 
-                    string symbolToBuy = null;
+                    int symbolIdToBuy = default;
 
                     // i'm being stupid at this point, fix later
                     for (int i = 0; i < sortedSymbols.Count(); i++)
                     {
                         if ((i / (decimal) sortedSymbols.Count()) < chart.PercentagePlacementForSecurityPick)
                         {
-                            symbolToBuy = sortedSymbols[i];
+                            symbolIdToBuy = sortedSymbols[i];
                         }
                         else
                         {
@@ -98,15 +99,15 @@ namespace CStafford.Moneytree.Application
 
                     toReturn.Add((
                         ActionToTake.Buy,
-                        symbolToBuy,
-                        ticks.Where(x => x.SymbolName == symbolToBuy).Last().ClosePrice));
+                        symbolIdToName[symbolIdToBuy],
+                        ticks.Where(x => x.SymbolId == symbolIdToBuy).Last().ClosePrice));
                 }
             }
 
             foreach (var asset in assets)
             {
                 var tick = _dbContext.Ticks
-                    .Where(x => x.SymbolName == asset.symbol)
+                    .Where(x => symbolIdToName[x.SymbolId] == asset.symbol)
                     .Where(x => x.OpenTime <= evaluationTime)
                     .OrderByDescending(x => x.OpenTime)
                     .First();

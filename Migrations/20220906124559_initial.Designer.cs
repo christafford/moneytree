@@ -11,8 +11,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace moneytree.Migrations
 {
     [DbContext(typeof(MoneyTreeDbContext))]
-    [Migration("20220905182421_any_changes")]
-    partial class any_changes
+    [Migration("20220906124559_initial")]
+    partial class initial
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
@@ -21,17 +21,49 @@ namespace moneytree.Migrations
                 .HasAnnotation("ProductVersion", "6.0.8")
                 .HasAnnotation("Relational:MaxIdentifierLength", 64);
 
+            modelBuilder.Entity("CStafford.Moneytree.Models.Chart", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    b.Property<int>("DaysSymbolsMustExist")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MinutesForMarketAnalysis")
+                        .HasColumnType("int");
+
+                    b.Property<int>("NumberOfHighestTradedForMarketAnalysis")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("PercentagePlacementForSecurityPick")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal>("ThresholdToDropForSell")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal>("ThresholdToRiseForSell")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Charts");
+                });
+
             modelBuilder.Entity("CStafford.Moneytree.Models.PullDown", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
+                    b.Property<bool>("Finished")
+                        .HasColumnType("tinyint(1)");
+
                     b.Property<DateTime>("RunTime")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<string>("SymbolName")
-                        .HasColumnType("varchar(255)");
+                    b.Property<int>("SymbolId")
+                        .HasColumnType("int");
 
                     b.Property<DateTime>("TickRequestTime")
                         .HasColumnType("datetime(6)");
@@ -44,18 +76,20 @@ namespace moneytree.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("SymbolName", "TickResponseEnd");
-
                     b.ToTable("PullDowns");
                 });
 
             modelBuilder.Entity("CStafford.Moneytree.Models.Symbol", b =>
                 {
-                    b.Property<string>("Name")
-                        .HasColumnType("varchar(255)");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
 
                     b.Property<decimal?>("MinTradeQuantity")
                         .HasColumnType("decimal(65,30)");
+
+                    b.Property<string>("Name")
+                        .HasColumnType("longtext");
 
                     b.Property<int?>("PriceDecimals")
                         .HasColumnType("int");
@@ -69,16 +103,16 @@ namespace moneytree.Migrations
                     b.Property<decimal?>("QuantityStep")
                         .HasColumnType("decimal(65,30)");
 
-                    b.HasKey("Name");
+                    b.HasKey("Id");
 
                     b.ToTable("Symbols");
                 });
 
             modelBuilder.Entity("CStafford.Moneytree.Models.Tick", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("bigint");
 
                     b.Property<decimal?>("ClosePrice")
                         .HasColumnType("decimal(65,30)");
@@ -98,37 +132,15 @@ namespace moneytree.Migrations
                     b.Property<int>("PullDownId")
                         .HasColumnType("int");
 
-                    b.Property<string>("SymbolName")
-                        .HasColumnType("longtext");
+                    b.Property<int>("SymbolId")
+                        .HasColumnType("int");
 
                     b.Property<decimal?>("Volume")
                         .HasColumnType("decimal(65,30)");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("PullDownId");
-
                     b.ToTable("Ticks");
-                });
-
-            modelBuilder.Entity("CStafford.Moneytree.Models.PullDown", b =>
-                {
-                    b.HasOne("CStafford.Moneytree.Models.Symbol", "Symbol")
-                        .WithMany()
-                        .HasForeignKey("SymbolName");
-
-                    b.Navigation("Symbol");
-                });
-
-            modelBuilder.Entity("CStafford.Moneytree.Models.Tick", b =>
-                {
-                    b.HasOne("CStafford.Moneytree.Models.PullDown", "PullDown")
-                        .WithMany()
-                        .HasForeignKey("PullDownId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("PullDown");
                 });
 #pragma warning restore 612, 618
         }

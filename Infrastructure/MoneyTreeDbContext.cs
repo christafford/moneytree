@@ -17,11 +17,27 @@ namespace CStafford.Moneytree.Infrastructure
         public DbSet<PullDown> PullDowns { get; set; }
         public DbSet<Chart> Charts { get; set; }
 
+        public async Task Insert(Symbol symbol)
+        {
+            var connection = GetConnection();
+            using var transaction = connection.BeginTransaction();
+            await connection.InsertAsync(symbol, transaction);
+            await transaction.CommitAsync();
+        }
+
         public async Task Insert(PullDown pulldown)
         {
             var connection = GetConnection();
             using var transaction = connection.BeginTransaction();
             await connection.InsertAsync(pulldown, transaction);
+            await transaction.CommitAsync();
+        }
+
+        public async Task Update(PullDown pulldown)
+        {
+            var connection = GetConnection();
+            using var transaction = connection.BeginTransaction();
+            await connection.UpdateAsync(pulldown, transaction);
             await transaction.CommitAsync();
         }
 
@@ -35,16 +51,12 @@ namespace CStafford.Moneytree.Infrastructure
 
         private DbConnection GetConnection()
         {
-            DbConnection connection;
-            lock (Database)
+            var connection = Database.GetDbConnection();
+            if (connection.State == ConnectionState.Closed)
             {
-                connection = Database.GetDbConnection();
-                if (connection.State == ConnectionState.Closed)
-                {
-                    connection.Open();
-                }
+                connection.Open();
             }
-
+            
             return connection;
         }
     }
