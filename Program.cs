@@ -19,7 +19,7 @@ var userId = config.GetValue<string>("MoneyTree:DbUsername");
 var server = config.GetValue<string>("MoneyTree:DbServer");
 var port = config.GetValue<string>("MoneyTree:DbPort");
 
-var connectionString = $"Server={server};Port={port};Database=MoneyTree;User={userId};Password={password};SSL Mode=None;AllowPublicKeyRetrieval=True;";
+var connectionString = $"Server={server};Port={port};Database=MoneyTree;User={userId};Password={password};SSL Mode=None;AllowPublicKeyRetrieval=True;default command timeout=0;";
 
 var builder = new HostBuilder()
     .ConfigureServices((_, services) =>
