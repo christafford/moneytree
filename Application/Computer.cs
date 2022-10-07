@@ -23,13 +23,27 @@ namespace CStafford.Moneytree.Application
             _logger = logger;
         }
 
-        public async Task<List<(ActionToTake action, string relevantSymbol, decimal? usdAtPurchase)>> EvaluateMarket(
+        public async Task<decimal> MarketValue(string symbol, DateTime atDate)
+        {
+            var symbolId = (await _dbContext.Symbols.FirstAsync(x => x.Name == symbol)).Id;
+
+            var tick = await _dbContext.Ticks
+                .Where(x => x.SymbolId == symbolId)
+                .Where(x => x.OpenTime <= atDate)
+                .Where(x => x.ClosePrice != null)
+                .OrderByDescending(x => x.OpenTime)
+                .FirstAsync();
+
+            return tick.ClosePrice.Value;
+        }
+
+        public async Task<List<(ActionToTake action, string relevantSymbol, decimal? symbolUsdValue)>> EvaluateMarket(
             Chart chart,
             bool moneyToBurn,
-            List<(string symbol, decimal usdAtPurchase)> assets,
+            List<(string symbol, decimal usdInvested)> assets,
             DateTime evaluationTime)
         {
-            var toReturn = new List<(ActionToTake action, string relevantSymbol, decimal? usdAtPurchase)>();
+            var toReturn = new List<(ActionToTake action, string relevantSymbol, decimal? symbolUsdValue)>();
             var symbolIdToName = _dbContext.Symbols.ToDictionary(x => x.Id, x => x.Name);
             
             if (moneyToBurn)
@@ -112,11 +126,11 @@ namespace CStafford.Moneytree.Application
                     .OrderByDescending(x => x.OpenTime)
                     .First();
                 
-                var diff = (tick.ClosePrice - asset.usdAtPurchase) / asset.usdAtPurchase;
+                var diff = (tick.ClosePrice - asset.usdInvested) / asset.usdAtPurchase;
                 
                 if (diff >= chart.ThresholdToRiseForSell || diff <= chart.ThresholdToDropForSell)
                 {
-                    toReturn.Add((ActionToTake.Sell, asset.symbol, default));
+                    toReturn.Add((ActionToTake.Sell, asset.symbol, tick.ClosePrice));
                 }
             }
 

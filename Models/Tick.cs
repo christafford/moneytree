@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 namespace CStafford.Moneytree.Models
 {
     [Index(nameof(SymbolId), nameof(OpenTime), IsUnique = true)]
+    [Index(nameof(OpenTime))]
     public class Tick
     {
         [Dapper.Contrib.Extensions.Key]

@@ -1,10 +1,8 @@
 using System.Data;
 using System.Data.Common;
 using CStafford.Moneytree.Models;
-using Dapper;
 using Dapper.Contrib.Extensions;
 using Microsoft.EntityFrameworkCore;
-
 
 namespace CStafford.Moneytree.Infrastructure
 {
@@ -16,6 +14,7 @@ namespace CStafford.Moneytree.Infrastructure
         public DbSet<Symbol> Symbols { get; set; }
         public DbSet<PullDown> PullDowns { get; set; }
         public DbSet<Chart> Charts { get; set; }
+        public DbSet<Simulation> Simulations { get; set; }
 
         public async Task Insert(Symbol symbol)
         {
@@ -46,6 +45,14 @@ namespace CStafford.Moneytree.Infrastructure
             var connection = GetConnection();
             using var transaction = connection.BeginTransaction();
             await connection.InsertAsync(tick, transaction);
+            await transaction.CommitAsync();
+        }
+
+        public async Task Insert(Chart chart)
+        {
+            var connection = GetConnection();
+            using var transaction = connection.BeginTransaction();
+            await connection.InsertAsync(chart, transaction);
             await transaction.CommitAsync();
         }
 
