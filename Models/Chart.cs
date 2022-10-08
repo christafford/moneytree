@@ -11,5 +11,16 @@ namespace CStafford.Moneytree.Models
         public decimal PercentagePlacementForSecurityPick { get; set; }
         public decimal ThresholdToRiseForSell { get; set; }
         public decimal ThresholdToDropForSell { get; set; }
+
+        public override string ToString()
+        {
+            return $"Id: {Id}\n" +
+                $"MinutesForMarketAnalysis: {Id}\n" +
+                $"NumberOfHighestTradedForMarketAnalysis: {NumberOfHighestTradedForMarketAnalysis}\n" +
+                $"DaysSymbolsMustExist: {DaysSymbolsMustExist}\n" +
+                $"PercentagePlacementForSecurityPick: {PercentagePlacementForSecurityPick}\n" +
+                $"ThresholdToRiseForSell: {ThresholdToRiseForSell}\n" +
+                $"ThresholdToDropForSell: {ThresholdToDropForSell}";
+        }
     }
 }

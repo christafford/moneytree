@@ -62,12 +62,12 @@ public class Simulator
             
             var cashDeposited = 0m;
             var cashOnHand = 0m;
-            var assets = new List<(string symbol, decimal usdInvested, decimal quantityOwned)>();
-            
-            var current = simulation.RunTimeStart;
+            var assets = new List<(string symbol, decimal usdPurchasePrice, decimal quanityOwned)>();
+
+            var current = simulation.SimulationStart;
             var nextDeposit = current;
 
-            while (current <= simulation.RunTimeEnd)
+            while (current <= simulation.SimulationEnd)
             {
                 if (current == nextDeposit)
                 {
@@ -91,7 +91,7 @@ public class Simulator
                 var actionsToTake = await _computer.EvaluateMarket(
                     chart,
                     cashOnHand > 0m,
-                    assets,
+                    assets.Select(x => (x.symbol, x.usdPurchasePrice)).ToList(),
                     current);
                 
                 foreach (var actionToTake in actionsToTake)
@@ -101,19 +101,29 @@ public class Simulator
                         case ActionToTake.Buy:
                             if (! assets.Any(x => x.symbol == actionToTake.relevantSymbol))
                             {
-                                assets.Add((actionToTake.relevantSymbol, cashOnHand));
+                                var qtyToBuy = cashOnHand / actionToTake.symbolUsdValue.Value;
+                                assets.Add((actionToTake.relevantSymbol, actionToTake.symbolUsdValue.Value, qtyToBuy));
                             }
                             else
                             {
                                 var existing = assets.First(x => x.symbol == actionToTake.relevantSymbol);
                                 assets.Remove(existing);
-                                assets.Add((actionToTake.relevantSymbol, existing.usdAtPurchase + cashOnHand));
+
+                                // calculate a viable usdPurchasePrice porportional to what's owned and what's being bought now
+                                var qtyToBuy = cashOnHand / actionToTake.symbolUsdValue.Value;
+                                var totalQty = qtyToBuy + existing.quanityOwned;
+                                var portionOriginalPrice = existing.quanityOwned / totalQty;
+                                var portionNewPrice = qtyToBuy / totalQty;
+                                var mediatedBuyPrice = (portionOriginalPrice * existing.quanityOwned) + (portionNewPrice * qtyToBuy);
+
+                                assets.Add((actionToTake.relevantSymbol, mediatedBuyPrice, totalQty));
                             }
+
                             cashOnHand = 0m;
                             break;
                         case ActionToTake.Sell:
                             var asset = assets.First(x => x.symbol == actionToTake.relevantSymbol);
-                            cashOnHand += actionToTake.symbolUsdValue * asset.usdAtPurchase;
+                            cashOnHand += actionToTake.symbolUsdValue.Value * asset.quanityOwned;
                             assets.Remove(asset);
                             break;
                         case ActionToTake.Hold:
@@ -123,6 +133,21 @@ public class Simulator
 
                 current = current.AddMinutes(1);
             }
+
+            simulation.RunTimeEnd = DateTime.Now;
+            foreach (var asset in assets)
+            {
+                cashOnHand += asset.quanityOwned + await _computer.MarketValue(asset.symbol, current);
+            }
+            var gain = (cashOnHand - cashDeposited) / cashDeposited;
+            simulation.ResultGainPercentage = gain;
+            await _dbContext.Insert(simulation);
+
+            _logger.LogInformation($"---------------\nRun {i + 1} of 1000");
+            _logger.LogInformation("\n---------------CHART:\n---------------");
+            _logger.LogInformation(chart.ToString());
+            _logger.LogInformation("\n---------------Simulation:\n---------------");
+            _logger.LogInformation(simulation.ToString());
         }
     }
 }

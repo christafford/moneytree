@@ -16,11 +16,13 @@ namespace CStafford.Moneytree.Application
 
         private readonly MoneyTreeDbContext _dbContext;
         private readonly ILogger<Computer> _logger;
+        private readonly Dictionary<int, string> _symbolIdToName;
 
         public Computer(MoneyTreeDbContext dbContext, ILogger<Computer> logger)
         {
             _dbContext = dbContext;
             _logger = logger;
+            _symbolIdToName = _dbContext.Symbols.ToDictionary(x => x.Id, x => x.Name);
         }
 
         public async Task<decimal> MarketValue(string symbol, DateTime atDate)
@@ -40,17 +42,16 @@ namespace CStafford.Moneytree.Application
         public async Task<List<(ActionToTake action, string relevantSymbol, decimal? symbolUsdValue)>> EvaluateMarket(
             Chart chart,
             bool moneyToBurn,
-            List<(string symbol, decimal usdInvested)> assets,
+            List<(string symbol, decimal usdAtPurchase)> assets,
             DateTime evaluationTime)
         {
             var toReturn = new List<(ActionToTake action, string relevantSymbol, decimal? symbolUsdValue)>();
-            var symbolIdToName = _dbContext.Symbols.ToDictionary(x => x.Id, x => x.Name);
             
             if (moneyToBurn)
             {
+                var beginningOfmarketAnalysis = evaluationTime.Subtract(TimeSpan.FromMinutes(chart.MinutesForMarketAnalysis));
                 var ticks = await _dbContext.Ticks
-                    .Where(x => x.OpenTime >= evaluationTime.Subtract(TimeSpan.FromMinutes(chart.MinutesForMarketAnalysis)))
-                    .Where(x => x.OpenTime <= evaluationTime)
+                    .Where(x => x.OpenTime >= beginningOfmarketAnalysis && x.OpenTime <= evaluationTime)
                     .ToListAsync();
 
                 var symbols = ticks.Select(x => x.SymbolId).Distinct();
@@ -113,22 +114,23 @@ namespace CStafford.Moneytree.Application
 
                     toReturn.Add((
                         ActionToTake.Buy,
-                        symbolIdToName[symbolIdToBuy],
+                        _symbolIdToName[symbolIdToBuy],
                         ticks.Where(x => x.SymbolId == symbolIdToBuy).Last().ClosePrice));
                 }
             }
 
             foreach (var asset in assets)
             {
+                var assetSymbolId = _symbolIdToName.Where(x => x.Value == asset.symbol).First().Key;
+
                 var tick = _dbContext.Ticks
-                    .Where(x => symbolIdToName[x.SymbolId] == asset.symbol)
-                    .Where(x => x.OpenTime <= evaluationTime)
+                    .Where(x => x.SymbolId == assetSymbolId && x.OpenTime <= evaluationTime)
                     .OrderByDescending(x => x.OpenTime)
                     .First();
                 
-                var diff = (tick.ClosePrice - asset.usdInvested) / asset.usdAtPurchase;
+                var diff = (tick.ClosePrice - asset.usdAtPurchase) / asset.usdAtPurchase;
                 
-                if (diff >= chart.ThresholdToRiseForSell || diff <= chart.ThresholdToDropForSell)
+                if (diff >= chart.ThresholdToRiseForSell || (diff * -1) >= chart.ThresholdToDropForSell)
                 {
                     toReturn.Add((ActionToTake.Sell, asset.symbol, tick.ClosePrice));
                 }

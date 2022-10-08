@@ -56,6 +56,14 @@ namespace CStafford.Moneytree.Infrastructure
             await transaction.CommitAsync();
         }
 
+        public async Task Insert(Simulation simulation)
+        {
+            var connection = GetConnection();
+            using var transaction = connection.BeginTransaction();
+            await connection.InsertAsync(simulation, transaction);
+            await transaction.CommitAsync();
+        }
+
         private DbConnection GetConnection()
         {
             var connection = Database.GetDbConnection();

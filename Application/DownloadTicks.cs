@@ -55,6 +55,9 @@ namespace CStafford.Moneytree.Application
             // no idea why but this isn't valid
             symbolsDone.Add("TUSD");
 
+            // and this isn't useful
+            symbolsDone.Add("USDTUSD");
+
             while (symbols.Any(x => !symbolsDone.Contains(x.Name)))
             {
                 foreach (var symbol in symbols.Where(x => !symbolsDone.Contains(x.Name)))

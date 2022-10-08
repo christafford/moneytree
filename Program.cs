@@ -41,13 +41,19 @@ var builder = new HostBuilder()
             .AddAutoMapper(typeof(Program))
             .AddScoped<BinanceApiService>()
             .AddScoped<DownloadTicks>()
-            .AddLogging(x => x.AddConsole());
+            .AddScoped<Computer>()
+            .AddScoped<Simulator>()
+            .AddLogging(x =>
+            {
+                x.AddConsole();
+                x.AddFilter("Microsoft.EntityFrameworkCore.Database.Command", LogLevel.Warning);
+            });
     })
     .UseConsoleLifetime();
 
 var host = builder.Build();
 
 using var scope = host.Services.CreateAsyncScope();
-await scope.ServiceProvider.GetService<DownloadTicks>().Run();
+await scope.ServiceProvider.GetService<Simulator>().Run();
 
 await host.RunAsync();
