@@ -10,23 +10,26 @@ namespace CStafford.Moneytree.Application;
 public class Simulator
 {
     private readonly Computer _computer;
-    private readonly MoneyTreeDbContext _dbContext;
+    private readonly DbContextOptions<MoneyTreeDbContext> _options;
     private readonly ILogger<Simulator> _logger;
     private DateTime _earliestDate;
     private DateTime _latestDate;
     private Random _random;
 
     public Simulator(
+        DbContextOptions<MoneyTreeDbContext> options,
         Computer computer,
-        MoneyTreeDbContext dbContext,
         ILogger<Simulator> logger)
     {
         _computer = computer;
-        _dbContext = dbContext;
+        _options = options;
         _logger = logger;
         _random = new Random(System.DateTime.Now.Millisecond);
-        _earliestDate = _dbContext.Ticks.Min(x => x.OpenTime);
-        _latestDate = _dbContext.Ticks.Max(x => x.OpenTime);
+
+        var initContext = new MoneyTreeDbContext(options);
+
+        _earliestDate = initContext.Ticks.Min(x => x.OpenTime);
+        _latestDate = initContext.Ticks.Max(x => x.OpenTime);
     }
 
     public async Task Run()
@@ -36,30 +39,33 @@ public class Simulator
         await EnsureCharts(1000);
 
         var chartIdToNumSimulations = new Dictionary<Chart, int>();
-        var charts = await _dbContext.Charts.ToListAsync();
+        var dbContext = new MoneyTreeDbContext(_options);
+        var charts = await dbContext.Charts.ToListAsync();
 
         foreach (var chart in charts)
         {
-            chartIdToNumSimulations.Add(chart, await _dbContext.Simulations.CountAsync(x => x.ChartId == chart.Id));
+            chartIdToNumSimulations.Add(chart, await dbContext.Simulations.CountAsync(x => x.ChartId == chart.Id));
         }
 
         _logger.LogInformation("Done. Now running simulations");
-
-        var tasksToRun = new List<Task>();
         
-        for (int i = 0; i < 1000; i++)
+        while(true)
         {
-            var lowestChart = chartIdToNumSimulations.OrderBy(x => x.Value).First().Key;
-            chartIdToNumSimulations[lowestChart]++;
-            tasksToRun.Add(RunSimulation(lowestChart));
+            var tasksToRun = new List<Task>();
+            
+            for (int i = 0; i < 3; i++)
+            {
+                var lowestChart = chartIdToNumSimulations.OrderBy(x => x.Value).First().Key;
+                chartIdToNumSimulations[lowestChart]++;
+                tasksToRun.Add(RunSimulation(lowestChart));
+                await Task.WhenAll(tasksToRun);
+            }
         }
-
-        await Task.WhenAll(tasksToRun);
     }
 
     private async Task EnsureCharts(int num)
     {
-        var currentNum = _dbContext.Charts.Count();
+        var currentNum = new MoneyTreeDbContext(_options).Charts.Count();
 
         for (int i = 0; i < num - currentNum; i++)
         {
@@ -72,7 +78,7 @@ public class Simulator
             chart.ThresholdToRiseForSell = (0.5m + (decimal) (_random.NextDouble() * 9.5)) / 100m;
             chart.ThresholdToDropForSell = (0.5m + (decimal) (_random.NextDouble() * 9.5)) / 100m;
 
-            await _dbContext.Insert(chart);
+            await new MoneyTreeDbContext(_options).Insert(chart);
         }
     }
 
@@ -98,7 +104,7 @@ public class Simulator
         var assets = new List<(string symbol, decimal usdPurchasePrice, decimal quanityOwned)>();
 
         var computerContext = new ComputerContext();
-        await computerContext.Init(_dbContext, chart, simulation.SimulationStart);
+        await computerContext.Init(new MoneyTreeDbContext(_options), chart, simulation.SimulationStart);
 
         var nextDeposit = computerContext.EvaluationTime;
 
@@ -179,7 +185,7 @@ public class Simulator
         var gain = (cashOnHand - cashDeposited) / cashDeposited;
         simulation.ResultGainPercentage = gain;
 
-        await _dbContext.Insert(simulation);
+        await new MoneyTreeDbContext(_options).Insert(simulation);
 
         _logger.LogInformation("\n---------------Simulation:\n---------------");
         _logger.LogInformation(simulation.ToString());
