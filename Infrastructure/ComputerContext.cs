@@ -15,6 +15,8 @@ public class ComputerContext
     private IDictionary<int, Tick> _lastTicks;
     private static Object _lock = new Object();
 
+    public DateTime EvaluationTime => _lastTickTime;
+
     public async Task Init(MoneyTreeDbContext dbContext, Chart chart, DateTime evaluationTime)
     {
         _dbContext = dbContext;
@@ -57,17 +59,19 @@ public class ComputerContext
         }
     }
 
-    public List<(int symbolId, decimal volumeUsd, decimal percentageGain)> GetSymbolData()
+    public List<(int symbolId, decimal volumeUsd, decimal percentageGain, decimal closePrice)> MarketAnalysis()
     {
-        var toReturn = new List<(int symbolId, decimal volumeUsd, decimal percentageGain)>();
+        var toReturn = new List<(int symbolId, decimal volumeUsd, decimal percentageGain, decimal closePrice)>();
 
         foreach (var symbolId in _validSymbolIds)
         {
             var firstClosePrice = (_firstTicks.ContainsKey(symbolId) ? _firstTicks[symbolId].ClosePrice : 0) ?? 0;
             var lastClosePrice = (_lastTicks.ContainsKey(symbolId) ? _lastTicks[symbolId].ClosePrice : 0) ?? 0;
             var percentageGain = firstClosePrice == 0 ? 0 : (lastClosePrice - firstClosePrice) / firstClosePrice;
+            
             var volumeUsd = _symbolToVolumeUsd[symbolId];
-            toReturn.Add((symbolId, volumeUsd, percentageGain));
+
+            toReturn.Add((symbolId, volumeUsd, percentageGain, lastClosePrice));
         }
 
         return toReturn;

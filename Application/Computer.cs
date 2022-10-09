@@ -16,13 +16,26 @@ namespace CStafford.Moneytree.Application
 
         private readonly MoneyTreeDbContext _dbContext;
         private readonly ILogger<Computer> _logger;
-        private readonly Dictionary<int, string> _symbolIdToName;
+        private static Dictionary<int, string> _symbolIdToName;
+        private static Dictionary<string, int> _symbolNameToId;
+        private static Object _lock = new Object();
 
         public Computer(MoneyTreeDbContext dbContext, ILogger<Computer> logger)
         {
             _dbContext = dbContext;
             _logger = logger;
-            _symbolIdToName = _dbContext.Symbols.ToDictionary(x => x.Id, x => x.Name);
+
+            if (_symbolIdToName == null)
+            {
+                lock (_lock)
+                {
+                    if (_symbolIdToName == null)
+                    {
+                        _symbolIdToName = _dbContext.Symbols.ToDictionary(x => x.Id, x => x.Name);
+                        _symbolNameToId = _dbContext.Symbols.ToDictionary(x => x.Name, x => x.Id);
+                    }
+                }
+            }
         }
 
         public async Task<decimal> MarketValue(string symbol, DateTime atDate)
@@ -43,68 +56,31 @@ namespace CStafford.Moneytree.Application
             Chart chart,
             bool moneyToBurn,
             List<(string symbol, decimal usdAtPurchase)> assets,
-            DateTime evaluationTime)
+            ComputerContext computerContext)
         {
             var toReturn = new List<(ActionToTake action, string relevantSymbol, decimal? symbolUsdValue)>();
-            
+            var marketContext = computerContext.MarketAnalysis();
+
             if (moneyToBurn)
             {
-                var beginningOfmarketAnalysis = evaluationTime.Subtract(TimeSpan.FromMinutes(chart.MinutesForMarketAnalysis));
-                var ticks = await _dbContext.Ticks
-                    .Where(x => x.OpenTime >= beginningOfmarketAnalysis && x.OpenTime <= evaluationTime)
-                    .ToListAsync();
-
-                var symbols = ticks.Select(x => x.SymbolId).Distinct();
-                var validationDate = evaluationTime.Subtract(TimeSpan.FromDays(chart.DaysSymbolsMustExist));
-
-                var passesExistenceValidation = symbols
-                    .Where(x => _dbContext.Ticks
-                        .Where(y => y.SymbolId == x)
-                        .Where(y => y.OpenTime <= validationDate)
-                        .Any())
-                    .ToHashSet();
-
-                ticks = ticks
-                    .Where(x => passesExistenceValidation.Contains(x.SymbolId))
-                    .OrderBy(x => x.OpenTime)
-                    .ToList();
-
-                symbols = ticks.Select(x => x.SymbolId).Distinct();
-                
-                var marketMovers = ticks
-                    .Select(x => x.SymbolId)
-                    .Distinct()
-                    .OrderByDescending(x => ticks
-                        .Where(y => y.SymbolId == x)
-                        .Sum(y => y.ClosePrice * y.Volume))
+                var marketMovers = marketContext
+                    .OrderByDescending(x => x.volumeUsd)
                     .Take(chart.NumberOfHighestTradedForMarketAnalysis);
 
-                if (marketMovers.All(x =>
+                if (marketMovers.All(x => x.percentageGain > 0))
                 {
-                    var first = ticks.Where(y => y.SymbolId == x).First();
-                    var last = ticks.Where(y => y.SymbolId == x).Last();
-
-                    return first.OpenPrice < last.ClosePrice;
-                }))
-                {
-                    var sortedSymbols = symbols
-                        .OrderByDescending(x =>
-                        {
-                            var first = (ticks.First(y => y.SymbolId == x)).OpenPrice;
-                            var last = (ticks.Last(y => y.SymbolId == x)).ClosePrice;
-
-                            return (last - first) / first;
-                        })
+                    var marketGainers = marketContext
+                        .OrderByDescending(x => x.percentageGain)
                         .ToList();
 
-                    int symbolIdToBuy = default;
+                    (int symbolId, decimal volumeUsd, decimal percentageGain, decimal closePrice) toBuy = default;
 
                     // i'm being stupid at this point, fix later
-                    for (int i = 0; i < sortedSymbols.Count(); i++)
+                    for (int i = 0; i < marketGainers.Count(); i++)
                     {
-                        if ((i / (decimal) sortedSymbols.Count()) < chart.PercentagePlacementForSecurityPick)
+                        if ((i / (decimal) marketGainers.Count()) < chart.PercentagePlacementForSecurityPick)
                         {
-                            symbolIdToBuy = sortedSymbols[i];
+                            toBuy = marketGainers[i];
                         }
                         else
                         {
@@ -114,25 +90,21 @@ namespace CStafford.Moneytree.Application
 
                     toReturn.Add((
                         ActionToTake.Buy,
-                        _symbolIdToName[symbolIdToBuy],
-                        ticks.Where(x => x.SymbolId == symbolIdToBuy).Last().ClosePrice));
+                        _symbolIdToName[toBuy.symbolId],
+                        toBuy.closePrice));
                 }
             }
 
             foreach (var asset in assets)
             {
-                var assetSymbolId = _symbolIdToName.Where(x => x.Value == asset.symbol).First().Key;
-
-                var tick = _dbContext.Ticks
-                    .Where(x => x.SymbolId == assetSymbolId && x.OpenTime <= evaluationTime)
-                    .OrderByDescending(x => x.OpenTime)
-                    .First();
+                var assetSymbolId = _symbolNameToId[asset.symbol];
+                var assetCurrent = marketContext.First(x => x.symbolId == assetSymbolId);
                 
-                var diff = (tick.ClosePrice - asset.usdAtPurchase) / asset.usdAtPurchase;
+                var diff = (assetCurrent.closePrice - asset.usdAtPurchase) / asset.usdAtPurchase;
                 
                 if (diff >= chart.ThresholdToRiseForSell || (diff * -1) >= chart.ThresholdToDropForSell)
                 {
-                    toReturn.Add((ActionToTake.Sell, asset.symbol, tick.ClosePrice));
+                    toReturn.Add((ActionToTake.Sell, asset.symbol, assetCurrent.closePrice));
                 }
             }
 

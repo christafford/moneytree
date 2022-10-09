@@ -30,23 +30,40 @@ public class Simulator
 
     public async Task Run()
     {
-        var chart = new Chart();
-        
-        chart.MinutesForMarketAnalysis = _random.Next(30, 2001);
-        chart.NumberOfHighestTradedForMarketAnalysis = _random.Next(3, 9);
-        chart.DaysSymbolsMustExist = _random.Next(0, 46);
-        chart.PercentagePlacementForSecurityPick = (decimal) _random.NextDouble();
-        chart.ThresholdToRiseForSell = (0.5m + (decimal) (_random.NextDouble() * 9.5)) / 100m;
-        chart.ThresholdToDropForSell = (0.5m + (decimal) (_random.NextDouble() * 9.5)) / 100m;
+        _logger.LogInformation("Setting up charts for simulation runs");
 
-        await _dbContext.Insert(chart);
+        await EnsureCharts(1000);
 
-        _logger.LogInformation("Created new {chart}", chart);
-
-        var simulations = new List<Simulation>();
-
-        for (int i = 0; i < 1000; i++)
+        var chartIdToNumSimulations = new Dictionary<int, int>();
+        var charts = await _dbContext.Charts.ToListAsync();
+        foreach (var chart in charts)
         {
+            chartIdToNumSimulations.Add(chart.Id, numS
+        }
+    }
+
+    private async Task EnsureCharts(int num)
+    {
+        var currentNum = _dbContext.Charts.Count();
+
+        for (int i = 0; i < num - currentNum; i++)
+        {
+            var chart = new Chart();
+            
+            chart.MinutesForMarketAnalysis = _random.Next(30, 2001);
+            chart.NumberOfHighestTradedForMarketAnalysis = _random.Next(3, 9);
+            chart.DaysSymbolsMustExist = _random.Next(0, 46);
+            chart.PercentagePlacementForSecurityPick = (decimal) _random.NextDouble();
+            chart.ThresholdToRiseForSell = (0.5m + (decimal) (_random.NextDouble() * 9.5)) / 100m;
+            chart.ThresholdToDropForSell = (0.5m + (decimal) (_random.NextDouble() * 9.5)) / 100m;
+
+            await _dbContext.Insert(chart);
+        }
+    }
+
+    private async Task RunSimulation(int chartId)
+    {
+
             var simulation = new Simulation();
 
             simulation.DepositFrequency = (DepositFrequencyEnum)_random.Next(0, 3);

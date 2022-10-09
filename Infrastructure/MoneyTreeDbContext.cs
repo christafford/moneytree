@@ -75,6 +75,14 @@ namespace CStafford.Moneytree.Infrastructure
             return await connection.QueryAsync<(int, decimal)>(sql, new { start, end });
         }
 
+        public async Task<List<int>> FindSymbolsInExistence(DateTime existenceDate)
+        {
+            const string sql = "select SymbolId, min(OpenTime) from Ticks group by SymbolId";
+            var connection = GetConnection();
+            var minDates = await connection.QueryAsync<(int SymbolId, DateTime minDate)>(sql);
+            return minDates.Where(x => x.minDate <= existenceDate).Select(x => x.SymbolId).ToList();
+        }
+
         private DbConnection GetConnection()
         {
             var connection = Database.GetDbConnection();
