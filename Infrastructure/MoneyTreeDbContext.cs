@@ -1,6 +1,7 @@
 using System.Data;
 using System.Data.Common;
 using CStafford.Moneytree.Models;
+using Dapper;
 using Dapper.Contrib.Extensions;
 using Microsoft.EntityFrameworkCore;
 
@@ -62,6 +63,16 @@ namespace CStafford.Moneytree.Infrastructure
             using var transaction = connection.BeginTransaction();
             await connection.InsertAsync(simulation, transaction);
             await transaction.CommitAsync();
+        }
+
+        public async Task<IEnumerable<(int SymbolId, decimal VolumeUsd)>> GetSymbolIdToVolume(DateTime start, DateTime end)
+        {
+            const string sql = 
+                "select SymbolId, sum(VolumeUsd) " +
+                "from Ticks where OpenTime >= @start and OpenTime <= @end group by SymbolId";
+
+            var connection = GetConnection();
+            return await connection.QueryAsync<(int, decimal)>(sql, new { start, end });
         }
 
         private DbConnection GetConnection()

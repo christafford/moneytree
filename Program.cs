@@ -54,6 +54,6 @@ var builder = new HostBuilder()
 var host = builder.Build();
 
 using var scope = host.Services.CreateAsyncScope();
-await scope.ServiceProvider.GetService<Simulator>().Run();
-
+//await scope.ServiceProvider.GetService<Simulator>().Run();
+await scope.ServiceProvider.GetService<MoneyTreeDbContext>().UpdateVolumeUsd();
 await host.RunAsync();

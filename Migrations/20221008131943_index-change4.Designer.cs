@@ -3,6 +3,7 @@ using System;
 using CStafford.Moneytree.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,10 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace moneytree.Migrations
 {
     [DbContext(typeof(MoneyTreeDbContext))]
-    partial class MoneyTreeDbContextModelSnapshot : ModelSnapshot
+    [Migration("20221008131943_index-change4")]
+    partial class indexchange4
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

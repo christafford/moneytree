@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CStafford.Moneytree.Models
 {
+    [Index(nameof(SymbolId), nameof(OpenTime), IsUnique = true)]
     [Index(nameof(OpenTime))]
     public class Tick
     {
@@ -16,5 +17,6 @@ namespace CStafford.Moneytree.Models
         public decimal? ClosePrice { get; set; }
         public decimal? Volume { get; set; }
         public int PullDownId { get; set; }
+        public decimal VolumeUsd { get; set; }
     }
 }
