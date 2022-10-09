@@ -15,7 +15,7 @@ namespace CStafford.Moneytree.Models
         public override string ToString()
         {
             return $"Id: {Id}\n" +
-                $"MinutesForMarketAnalysis: {Id}\n" +
+                $"MinutesForMarketAnalysis: {MinutesForMarketAnalysis}\n" +
                 $"NumberOfHighestTradedForMarketAnalysis: {NumberOfHighestTradedForMarketAnalysis}\n" +
                 $"DaysSymbolsMustExist: {DaysSymbolsMustExist}\n" +
                 $"PercentagePlacementForSecurityPick: {PercentagePlacementForSecurityPick}\n" +

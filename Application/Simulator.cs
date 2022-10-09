@@ -24,7 +24,7 @@ public class Simulator
         _computer = computer;
         _dbContext = dbContext;
         _logger = logger;
-        _random = new Random();
+        _random = new Random(System.DateTime.Now.Millisecond);
         _earliestDate = _dbContext.Ticks.Min(x => x.OpenTime);
         _latestDate = _dbContext.Ticks.Max(x => x.OpenTime);
     }
@@ -45,12 +45,16 @@ public class Simulator
 
         _logger.LogInformation("Done. Now running simulations");
 
-        while (true)
+        var tasksToRun = new List<Task>();
+        
+        for (int i = 0; i < 1000; i++)
         {
             var lowestChart = chartIdToNumSimulations.OrderBy(x => x.Value).First().Key;
             chartIdToNumSimulations[lowestChart]++;
-            await RunSimulation(lowestChart);
+            tasksToRun.Add(RunSimulation(lowestChart));
         }
+
+        await Task.WhenAll(tasksToRun);
     }
 
     private async Task EnsureCharts(int num)

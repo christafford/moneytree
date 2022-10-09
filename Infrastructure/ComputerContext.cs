@@ -43,20 +43,10 @@ public class ComputerContext
         _firstTicks = await _dbContext.Ticks
             .Where(x => x.OpenTime == _firstTickTime)
             .ToDictionaryAsync(x => x.SymbolId);
- 
-        if (!_firstTicks.Any())
-        {
-            throw new Exception($"No ticks found at: {_firstTickTime.ToString("g")}");
-        }
 
         _lastTicks = await _dbContext.Ticks
             .Where(x => x.OpenTime == _lastTickTime)
             .ToDictionaryAsync(x => x.SymbolId);
- 
-        if (!_lastTicks.Any())
-        {
-            throw new Exception($"No ticks found at: {_lastTickTime.ToString("g")}");
-        }
     }
 
     public List<(int symbolId, decimal volumeUsd, decimal percentageGain, decimal closePrice)> MarketAnalysis()
@@ -92,19 +82,9 @@ public class ComputerContext
             .Where(x => x.OpenTime == _firstTickTime)
             .ToDictionaryAsync(x => x.SymbolId);
  
-        if (!_firstTicks.Any())
-        {
-            throw new Exception($"No ticks found at: {_firstTickTime.ToString("g")}");
-        }
-
         _lastTicks = await _dbContext.Ticks
             .Where(x => x.OpenTime == _lastTickTime)
             .ToDictionaryAsync(x => x.SymbolId);
- 
-        if (!_lastTicks.Any())
-        {
-            throw new Exception($"No ticks found at: {_lastTickTime.ToString("g")}");
-        }
 
         foreach (var symbolId in _lastTicks.Keys)
         {
