@@ -32,7 +32,7 @@ public class ComputerContext
         
         _symbolToVolumeUsd = volumesTraded.ToDictionary(x => x.SymbolId, x => x.VolumeUsd);
     
-        foreach (var symbolId in _validSymbolIds)
+        foreach (var symbolId in await _dbContext.Symbols.Select(x => x.Id).ToListAsync())
         {
             if (!_symbolToVolumeUsd.ContainsKey(symbolId))
             {

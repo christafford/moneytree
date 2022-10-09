@@ -52,7 +52,7 @@ namespace CStafford.Moneytree.Application
             return tick.ClosePrice.Value;
         }
 
-        public async Task<List<(ActionToTake action, string relevantSymbol, decimal? symbolUsdValue)>> EvaluateMarket(
+        public List<(ActionToTake action, string relevantSymbol, decimal? symbolUsdValue)> EvaluateMarket(
             Chart chart,
             bool moneyToBurn,
             List<(string symbol, decimal usdAtPurchase)> assets,

@@ -74,7 +74,6 @@ public class Simulator
 
     private async Task RunSimulation(Chart chart)
     {
-        _logger.LogInformation("Running simulation for {chart}", chart);
         var simulation = new Simulation();
 
         simulation.DepositFrequency = (DepositFrequencyEnum)_random.Next(0, 3);
@@ -88,6 +87,8 @@ public class Simulator
         simulation.RunTimeStart = DateTime.Now;
         simulation.ChartId = chart.Id;
         
+        _logger.LogInformation("Running simulation for {chart} and simulation {simulation}", chart, simulation);
+
         var cashDeposited = 0m;
         var cashOnHand = 0m;
         var assets = new List<(string symbol, decimal usdPurchasePrice, decimal quanityOwned)>();
@@ -118,7 +119,7 @@ public class Simulator
                 }
             }
             
-            var actionsToTake = await _computer.EvaluateMarket(
+            var actionsToTake = _computer.EvaluateMarket(
                 chart,
                 cashOnHand > 0m,
                 assets.Select(x => (x.symbol, x.usdPurchasePrice)).ToList(),
