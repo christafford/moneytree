@@ -5,7 +5,7 @@ namespace CStafford.Moneytree.Infrastructure;
 
 public class ComputerContext
 {
-    private MoneyTreeDbContext _dbContext;
+    private DbContextOptions<MoneyTreeDbContext> _options;
     private Chart _chart;
     private IDictionary<int, decimal> _symbolToVolumeUsd;
     private DateTime _firstTickTime;
@@ -17,22 +17,27 @@ public class ComputerContext
 
     public DateTime EvaluationTime => _lastTickTime;
 
+    public ComputerContext(DbContextOptions<MoneyTreeDbContext> options)
+    {
+        _options = options;
+    }
+
     public async Task Init(MoneyTreeDbContext dbContext, Chart chart, DateTime evaluationTime)
     {
-        _dbContext = dbContext;
+        dbContext = new MoneyTreeDbContext(_options);
         _chart = chart;
         _firstTickTime = evaluationTime.Subtract(TimeSpan.FromMinutes(chart.MinutesForMarketAnalysis));
         _lastTickTime = evaluationTime;
         
         var validationDate = evaluationTime.Subtract(TimeSpan.FromDays(chart.DaysSymbolsMustExist));
 
-        _validSymbolIds = await _dbContext.FindSymbolsInExistence(validationDate);
+        _validSymbolIds = await dbContext.FindSymbolsInExistence(validationDate);
 
-        var volumesTraded = await _dbContext.GetSymbolIdToVolume(_firstTickTime, evaluationTime);
+        var volumesTraded = await dbContext.GetSymbolIdToVolume(_firstTickTime, evaluationTime);
         
         _symbolToVolumeUsd = volumesTraded.ToDictionary(x => x.SymbolId, x => x.VolumeUsd);
     
-        foreach (var symbolId in await _dbContext.Symbols.Select(x => x.Id).ToListAsync())
+        foreach (var symbolId in await dbContext.Symbols.Select(x => x.Id).ToListAsync())
         {
             if (!_symbolToVolumeUsd.ContainsKey(symbolId))
             {
@@ -40,11 +45,11 @@ public class ComputerContext
             }
         }
 
-        _firstTicks = await _dbContext.Ticks
+        _firstTicks = await dbContext.Ticks
             .Where(x => x.OpenTime == _firstTickTime)
             .ToDictionaryAsync(x => x.SymbolId);
 
-        _lastTicks = await _dbContext.Ticks
+        _lastTicks = await dbContext.Ticks
             .Where(x => x.OpenTime == _lastTickTime)
             .ToDictionaryAsync(x => x.SymbolId);
     }
@@ -78,11 +83,13 @@ public class ComputerContext
         _firstTickTime = _firstTickTime.AddMinutes(1);
         _lastTickTime = _lastTickTime.AddMinutes(1);
 
-        _firstTicks = await _dbContext.Ticks
+        var dbContext = new MoneyTreeDbContext(_options);
+
+        _firstTicks = await dbContext.Ticks
             .Where(x => x.OpenTime == _firstTickTime)
             .ToDictionaryAsync(x => x.SymbolId);
- 
-        _lastTicks = await _dbContext.Ticks
+
+        _lastTicks = await dbContext.Ticks
             .Where(x => x.OpenTime == _lastTickTime)
             .ToDictionaryAsync(x => x.SymbolId);
 

@@ -40,16 +40,8 @@ namespace CStafford.Moneytree.Application
 
         public async Task<decimal> MarketValue(string symbol, DateTime atDate)
         {
-            var symbolId = (await _dbContext.Symbols.FirstAsync(x => x.Name == symbol)).Id;
-
-            var tick = await _dbContext.Ticks
-                .Where(x => x.SymbolId == symbolId)
-                .Where(x => x.OpenTime <= atDate)
-                .Where(x => x.ClosePrice != null)
-                .OrderByDescending(x => x.OpenTime)
-                .FirstAsync();
-
-            return tick.ClosePrice.Value;
+            var symbolId = _symbolNameToId[symbol];
+            return await _dbContext.MarketValue(symbolId, atDate);
         }
 
         public List<(ActionToTake action, string relevantSymbol, decimal? symbolUsdValue)> EvaluateMarket(
@@ -87,6 +79,11 @@ namespace CStafford.Moneytree.Application
                             break;
                         }
                     }
+
+                    if (toBuy == default)
+                    {
+                        Console.WriteLine("Nonsense - how can there be no reasonable value for what we need here.");
+                   }
 
                     toReturn.Add((
                         ActionToTake.Buy,

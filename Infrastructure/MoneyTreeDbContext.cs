@@ -83,6 +83,15 @@ namespace CStafford.Moneytree.Infrastructure
             return minDates.Where(x => x.minDate <= existenceDate).Select(x => x.SymbolId).ToList();
         }
 
+        public async Task<decimal> MarketValue(int symbolId, DateTime atDate)
+        {
+            const string sql = 
+                "select ClosePrice from Ticks where SymbolId = @symbolId and OpenTime <= @atDate order by OpenTime desc limit 1";
+
+            var connection = GetConnection();
+            return await connection.QueryFirstAsync<decimal>(sql, new { symbolId, atDate });
+        }
+
         private DbConnection GetConnection()
         {
             var connection = Database.GetDbConnection();
