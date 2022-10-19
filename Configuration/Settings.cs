@@ -1,4 +1,4 @@
-namespace CStafford.Moneytree.Configuration
+namespace CStafford.MoneyTree.Configuration
 {
     public class Settings
     {

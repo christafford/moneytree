@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 using Dapper.Contrib.Extensions;
 using Microsoft.EntityFrameworkCore;
 
-namespace CStafford.Moneytree.Models
+namespace CStafford.MoneyTree.Models
 {
     public class PullDown
     {

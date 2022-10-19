@@ -1,67 +1,70 @@
 using System.Data;
 using System.Data.Common;
-using CStafford.Moneytree.Models;
+using CStafford.MoneyTree.Models;
 using Dapper;
 using Dapper.Contrib.Extensions;
 using Microsoft.EntityFrameworkCore;
 
-namespace CStafford.Moneytree.Infrastructure
+namespace CStafford.MoneyTree.Infrastructure
 {
     public class MoneyTreeDbContext : DbContext
     {
-        public MoneyTreeDbContext(DbContextOptions<MoneyTreeDbContext> options) : base(options) { }
-
         public DbSet<Tick> Ticks { get; set; }
         public DbSet<Symbol> Symbols { get; set; }
         public DbSet<PullDown> PullDowns { get; set; }
         public DbSet<Chart> Charts { get; set; }
         public DbSet<Simulation> Simulations { get; set; }
 
+        private readonly DbConnection _connection;
+
+        public MoneyTreeDbContext(DbContextOptions<MoneyTreeDbContext> options) : base(options)
+        {
+            _connection = Database.GetDbConnection();
+            if (_connection.State == ConnectionState.Closed)
+            {
+                _connection.Open();
+            }
+        }
+
         public async Task Insert(Symbol symbol)
         {
-            var connection = GetConnection();
-            using var transaction = connection.BeginTransaction();
-            await connection.InsertAsync(symbol, transaction);
+            using var transaction = _connection.BeginTransaction();
+            await _connection.InsertAsync(symbol, transaction);
             await transaction.CommitAsync();
         }
 
         public async Task Insert(PullDown pulldown)
         {
-            var connection = GetConnection();
-            using var transaction = connection.BeginTransaction();
-            await connection.InsertAsync(pulldown, transaction);
+            using var transaction = _connection.BeginTransaction();
+            await _connection.InsertAsync(pulldown, transaction);
             await transaction.CommitAsync();
         }
 
         public async Task Update(PullDown pulldown)
         {
-            var connection = GetConnection();
-            using var transaction = connection.BeginTransaction();
-            await connection.UpdateAsync(pulldown, transaction);
+            using var transaction = _connection.BeginTransaction();
+            await _connection.UpdateAsync(pulldown, transaction);
             await transaction.CommitAsync();
         }
 
         public async Task Insert(Tick tick)
         {
-            var connection = GetConnection();
-            using var transaction = connection.BeginTransaction();
-            await connection.InsertAsync(tick, transaction);
+            using var transaction = _connection.BeginTransaction();
+            await _connection.InsertAsync(tick, transaction);
             await transaction.CommitAsync();
         }
 
         public async Task Insert(Chart chart)
         {
-            var connection = GetConnection();
-            using var transaction = connection.BeginTransaction();
-            await connection.InsertAsync(chart, transaction);
+            using var transaction = _connection.BeginTransaction();
+            await _connection.InsertAsync(chart, transaction);
             await transaction.CommitAsync();
         }
 
         public async Task Insert(Simulation simulation)
         {
-            var connection = GetConnection();
-            using var transaction = connection.BeginTransaction();
-            await connection.InsertAsync(simulation, transaction);
+            using var transaction = _connection.BeginTransaction();
+            await _connection.InsertAsync(simulation, transaction);
             await transaction.CommitAsync();
         }
 
@@ -71,15 +74,14 @@ namespace CStafford.Moneytree.Infrastructure
                 "select SymbolId, sum(VolumeUsd) " +
                 "from Ticks where OpenTime >= @start and OpenTime <= @end group by SymbolId";
 
-            var connection = GetConnection();
-            return await connection.QueryAsync<(int, decimal)>(sql, new { start, end });
+            return await _connection.QueryAsync<(int, decimal)>(sql, new { start, end });
         }
 
         public async Task<List<int>> FindSymbolsInExistence(DateTime existenceDate)
         {
             const string sql = "select SymbolId, min(OpenTime) from Ticks group by SymbolId";
-            var connection = GetConnection();
-            var minDates = await connection.QueryAsync<(int SymbolId, DateTime minDate)>(sql);
+
+            var minDates = await _connection.QueryAsync<(int SymbolId, DateTime minDate)>(sql);
             return minDates.Where(x => x.minDate <= existenceDate).Select(x => x.SymbolId).ToList();
         }
 
@@ -88,19 +90,16 @@ namespace CStafford.Moneytree.Infrastructure
             const string sql = 
                 "select ClosePrice from Ticks where SymbolId = @symbolId and OpenTime <= @atDate order by OpenTime desc limit 1";
 
-            var connection = GetConnection();
-            return await connection.QueryFirstAsync<decimal>(sql, new { symbolId, atDate });
+            return await _connection.QueryFirstAsync<decimal>(sql, new { symbolId, atDate });
         }
 
-        private DbConnection GetConnection()
+        public async Task<List<Tick>> GetTicksAt(DateTime dateAt)
         {
-            var connection = Database.GetDbConnection();
-            if (connection.State == ConnectionState.Closed)
-            {
-                connection.Open();
-            }
-            
-            return connection;
+            return (await _connection
+                .QueryAsync<Tick>(
+                    "select * from Ticks where OpenTime = @dateAt",
+                    new { dateAt }))
+                .ToList();
         }
     }
 }

@@ -3,11 +3,11 @@ using Binance.Net.Clients;
 using Binance.Net.Objects;
 using CryptoExchange.Net.Authentication;
 using CryptoExchange.Net.Objects;
-using CStafford.Moneytree.Configuration;
-using CStafford.Moneytree.Models;
+using CStafford.MoneyTree.Configuration;
+using CStafford.MoneyTree.Models;
 using Microsoft.Extensions.Options;
 
-namespace CStafford.Moneytree.Services
+namespace CStafford.MoneyTree.Services
 {
     public class BinanceApiService
     {

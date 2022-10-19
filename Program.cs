@@ -1,7 +1,7 @@
-﻿using CStafford.Moneytree.Application;
-using CStafford.Moneytree.Configuration;
-using CStafford.Moneytree.Infrastructure;
-using CStafford.Moneytree.Services;
+﻿using CStafford.MoneyTree.Application;
+using CStafford.MoneyTree.Configuration;
+using CStafford.MoneyTree.Infrastructure;
+using CStafford.MoneyTree.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;

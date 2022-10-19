@@ -1,4 +1,4 @@
-namespace CStafford.Moneytree.Models
+namespace CStafford.MoneyTree.Models
 {
     public class Simulation
     {

@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace CStafford.Moneytree.Models
+namespace CStafford.MoneyTree.Models
 {
     public class Symbol
     {

@@ -1,9 +1,9 @@
-using CStafford.Moneytree.Infrastructure;
-using CStafford.Moneytree.Models;
+using CStafford.MoneyTree.Infrastructure;
+using CStafford.MoneyTree.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
-namespace CStafford.Moneytree.Application
+namespace CStafford.MoneyTree.Application
 {
     public class Computer
     {

@@ -1,7 +1,7 @@
-using CStafford.Moneytree.Models;
+using CStafford.MoneyTree.Models;
 using Microsoft.EntityFrameworkCore;
 
-namespace CStafford.Moneytree.Infrastructure;
+namespace CStafford.MoneyTree.Infrastructure;
 
 public class ComputerContext
 {
@@ -45,13 +45,8 @@ public class ComputerContext
             }
         }
 
-        _firstTicks = await dbContext.Ticks
-            .Where(x => x.OpenTime == _firstTickTime)
-            .ToDictionaryAsync(x => x.SymbolId);
-
-        _lastTicks = await dbContext.Ticks
-            .Where(x => x.OpenTime == _lastTickTime)
-            .ToDictionaryAsync(x => x.SymbolId);
+        _firstTicks = (await dbContext.GetTicksAt(_firstTickTime)).ToDictionary(x => x.SymbolId);
+        _lastTicks = (await dbContext.GetTicksAt(_lastTickTime)).ToDictionary(x => x.SymbolId);
     }
 
     public List<(int symbolId, decimal volumeUsd, decimal percentageGain, decimal closePrice)> MarketAnalysis()
@@ -85,13 +80,8 @@ public class ComputerContext
 
         var dbContext = new MoneyTreeDbContext(_options);
 
-        _firstTicks = await dbContext.Ticks
-            .Where(x => x.OpenTime == _firstTickTime)
-            .ToDictionaryAsync(x => x.SymbolId);
-
-        _lastTicks = await dbContext.Ticks
-            .Where(x => x.OpenTime == _lastTickTime)
-            .ToDictionaryAsync(x => x.SymbolId);
+        _firstTicks = (await dbContext.GetTicksAt(_firstTickTime)).ToDictionary(x => x.SymbolId);
+        _lastTicks = (await dbContext.GetTicksAt(_lastTickTime)).ToDictionary(x => x.SymbolId);
 
         foreach (var symbolId in _lastTicks.Keys)
         {

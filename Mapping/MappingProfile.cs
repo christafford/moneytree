@@ -1,13 +1,13 @@
 using AutoMapper;
 
-namespace CStafford.Moneytree.Mapping
+namespace CStafford.MoneyTree.Mapping
 {
     public class MappingProfile : Profile
     {
         public MappingProfile()
         {
-            CreateMap<CryptoExchange.Net.CommonObjects.Kline, CStafford.Moneytree.Models.Tick>();
-            CreateMap<CryptoExchange.Net.CommonObjects.Symbol, CStafford.Moneytree.Models.Symbol>();
+            CreateMap<CryptoExchange.Net.CommonObjects.Kline, CStafford.MoneyTree.Models.Tick>();
+            CreateMap<CryptoExchange.Net.CommonObjects.Symbol, CStafford.MoneyTree.Models.Symbol>();
         }
     }
 }

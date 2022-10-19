@@ -1,11 +1,11 @@
-using CStafford.Moneytree.Infrastructure;
-using CStafford.Moneytree.Models;
+using CStafford.MoneyTree.Infrastructure;
+using CStafford.MoneyTree.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
-using static CStafford.Moneytree.Application.Computer;
-using static CStafford.Moneytree.Models.Simulation;
+using static CStafford.MoneyTree.Application.Computer;
+using static CStafford.MoneyTree.Models.Simulation;
 
-namespace CStafford.Moneytree.Application;
+namespace CStafford.MoneyTree.Application;
 
 public class Simulator
 {

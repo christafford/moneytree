@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 
-namespace CStafford.Moneytree.Models
+namespace CStafford.MoneyTree.Models
 {
     [Index(nameof(SymbolId), nameof(OpenTime), IsUnique = true)]
     [Index(nameof(OpenTime))]
