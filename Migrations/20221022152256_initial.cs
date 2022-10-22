@@ -39,15 +39,34 @@ namespace moneytree.Migrations
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
                     SymbolId = table.Column<int>(type: "int", nullable: false),
-                    TickRequestTime = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    TickResponseStart = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    TickResponseEnd = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    TickStartEpoch = table.Column<int>(type: "int", nullable: false),
+                    TickEndEpoch = table.Column<int>(type: "int", nullable: true),
                     RunTime = table.Column<DateTime>(type: "datetime(6)", nullable: false),
                     Finished = table.Column<bool>(type: "tinyint(1)", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_PullDowns", x => x.Id);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "Simulations",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    ChartId = table.Column<int>(type: "int", nullable: false),
+                    DepositFrequency = table.Column<int>(type: "int", nullable: false),
+                    StartEpoch = table.Column<int>(type: "int", nullable: false),
+                    EndEpoch = table.Column<int>(type: "int", nullable: false),
+                    RunTimeStart = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    RunTimeEnd = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    ResultGainPercentage = table.Column<decimal>(type: "decimal(65,30)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Simulations", x => x.Id);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -77,13 +96,10 @@ namespace moneytree.Migrations
                 {
                     Id = table.Column<long>(type: "bigint", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    TickEpoch = table.Column<int>(type: "int", nullable: false),
                     SymbolId = table.Column<int>(type: "int", nullable: false),
-                    OpenTime = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    OpenPrice = table.Column<decimal>(type: "decimal(65,30)", nullable: true),
-                    HighPrice = table.Column<decimal>(type: "decimal(65,30)", nullable: true),
-                    LowPrice = table.Column<decimal>(type: "decimal(65,30)", nullable: true),
-                    ClosePrice = table.Column<decimal>(type: "decimal(65,30)", nullable: true),
-                    Volume = table.Column<decimal>(type: "decimal(65,30)", nullable: true),
+                    ClosePrice = table.Column<decimal>(type: "decimal(65,30)", nullable: false),
+                    VolumeUsd = table.Column<decimal>(type: "decimal(65,30)", nullable: false),
                     PullDownId = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
@@ -100,6 +116,9 @@ namespace moneytree.Migrations
 
             migrationBuilder.DropTable(
                 name: "PullDowns");
+
+            migrationBuilder.DropTable(
+                name: "Simulations");
 
             migrationBuilder.DropTable(
                 name: "Symbols");

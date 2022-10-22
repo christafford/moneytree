@@ -14,12 +14,7 @@ var config = new ConfigurationBuilder()
     .AddEnvironmentVariables()
     .Build();
 
-var password = config.GetValue<string>("MoneyTree:DbPassword");
-var userId = config.GetValue<string>("MoneyTree:DbUsername");
-var server = config.GetValue<string>("MoneyTree:DbServer");
-var port = config.GetValue<string>("MoneyTree:DbPort");
-
-var connectionString = $"Server={server};Port={port};Database=MoneyTree;User={userId};Password={password};SSL Mode=None;AllowPublicKeyRetrieval=True;default command timeout=0;";
+var connectionString = $"Server=127.0.0.1;Port=3306;Database=MoneyTree2;User=root;Password=qwe123;SSL Mode=None;AllowPublicKeyRetrieval=True;default command timeout=0;";
 
 var builder = new HostBuilder()
     .ConfigureServices((_, services) =>
@@ -54,6 +49,8 @@ var builder = new HostBuilder()
 var host = builder.Build();
 
 using var scope = host.Services.CreateAsyncScope();
-await scope.ServiceProvider.GetService<Simulator>().Run();
+
+// await scope.ServiceProvider.GetService<Simulator>().Run();
+await scope.ServiceProvider.GetService<DownloadTicks>().Run();
 
 await host.RunAsync();

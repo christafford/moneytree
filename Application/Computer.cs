@@ -38,10 +38,10 @@ namespace CStafford.MoneyTree.Application
             }
         }
 
-        public async Task<decimal> MarketValue(string symbol, DateTime atDate)
+        public async Task<decimal> MarketValue(string symbol, int atEpoch)
         {
             var symbolId = _symbolNameToId[symbol];
-            return await _dbContext.MarketValue(symbolId, atDate);
+            return await _dbContext.MarketValue(symbolId, atEpoch);
         }
 
         public List<(ActionToTake action, string relevantSymbol, decimal? symbolUsdValue)> EvaluateMarket(

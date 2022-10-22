@@ -16,7 +16,7 @@ namespace moneytree.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "6.0.8")
+                .HasAnnotation("ProductVersion", "6.0.10")
                 .HasAnnotation("Relational:MaxIdentifierLength", 64);
 
             modelBuilder.Entity("CStafford.MoneyTree.Models.Chart", b =>
@@ -63,14 +63,11 @@ namespace moneytree.Migrations
                     b.Property<int>("SymbolId")
                         .HasColumnType("int");
 
-                    b.Property<DateTime>("TickRequestTime")
-                        .HasColumnType("datetime(6)");
+                    b.Property<int?>("TickEndEpoch")
+                        .HasColumnType("int");
 
-                    b.Property<DateTime>("TickResponseEnd")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<DateTime>("TickResponseStart")
-                        .HasColumnType("datetime(6)");
+                    b.Property<int>("TickStartEpoch")
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
@@ -89,6 +86,9 @@ namespace moneytree.Migrations
                     b.Property<int>("DepositFrequency")
                         .HasColumnType("int");
 
+                    b.Property<int>("EndEpoch")
+                        .HasColumnType("int");
+
                     b.Property<decimal>("ResultGainPercentage")
                         .HasColumnType("decimal(65,30)");
 
@@ -98,11 +98,8 @@ namespace moneytree.Migrations
                     b.Property<DateTime>("RunTimeStart")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<DateTime>("SimulationEnd")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<DateTime>("SimulationStart")
-                        .HasColumnType("datetime(6)");
+                    b.Property<int>("StartEpoch")
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
@@ -144,20 +141,8 @@ namespace moneytree.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint");
 
-                    b.Property<decimal?>("ClosePrice")
+                    b.Property<decimal>("ClosePrice")
                         .HasColumnType("decimal(65,30)");
-
-                    b.Property<decimal?>("HighPrice")
-                        .HasColumnType("decimal(65,30)");
-
-                    b.Property<decimal?>("LowPrice")
-                        .HasColumnType("decimal(65,30)");
-
-                    b.Property<decimal?>("OpenPrice")
-                        .HasColumnType("decimal(65,30)");
-
-                    b.Property<DateTime>("OpenTime")
-                        .HasColumnType("datetime(6)");
 
                     b.Property<int>("PullDownId")
                         .HasColumnType("int");
@@ -165,18 +150,13 @@ namespace moneytree.Migrations
                     b.Property<int>("SymbolId")
                         .HasColumnType("int");
 
-                    b.Property<decimal?>("Volume")
-                        .HasColumnType("decimal(65,30)");
+                    b.Property<int>("TickEpoch")
+                        .HasColumnType("int");
 
                     b.Property<decimal>("VolumeUsd")
                         .HasColumnType("decimal(65,30)");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("OpenTime");
-
-                    b.HasIndex("SymbolId", "OpenTime")
-                        .IsUnique();
 
                     b.ToTable("Ticks");
                 });

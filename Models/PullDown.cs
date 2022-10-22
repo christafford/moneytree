@@ -10,10 +10,8 @@ namespace CStafford.MoneyTree.Models
         [System.ComponentModel.DataAnnotations.Key]
         public int Id { get; set; }
         public int SymbolId { get; set; }
-
-        public DateTime TickRequestTime { get; set; }
-        public DateTime TickResponseStart { get; set; }
-        public DateTime TickResponseEnd { get; set; }
+        public int TickStartEpoch { get; set; }
+        public int? TickEndEpoch { get; set; }
         public DateTime RunTime { get; set; }
         public bool Finished { get; set; }
     }

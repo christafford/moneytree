@@ -1,3 +1,4 @@
+using CStafford.MoneyTree.Configuration;
 using CStafford.MoneyTree.Infrastructure;
 using CStafford.MoneyTree.Models;
 using CStafford.MoneyTree.Services;
@@ -11,7 +12,6 @@ namespace CStafford.MoneyTree.Application
         private BinanceApiService _api;
         private ILogger<DownloadTicks> _logger;
         private MoneyTreeDbContext _context;
-        private static readonly DateTime InitialStart = new DateTime(2019, 9, 6);
 
         public DownloadTicks(
             BinanceApiService api,
@@ -32,22 +32,22 @@ namespace CStafford.MoneyTree.Application
             var unfinishedPullDowns = await _context.PullDowns.Where(x => !x.Finished).ToListAsync();
             foreach (var unfinished in unfinishedPullDowns)
             {
-                unfinished.TickResponseEnd = (await _context.Ticks
+                unfinished.TickEndEpoch = (await _context.Ticks
                     .Where(x => x.PullDownId == unfinished.Id)
-                    .MaxAsync(x => x.OpenTime));
+                    .MaxAsync(x => x.TickEpoch));
 
                 unfinished.Finished = true;
                 await _context.Update(unfinished);
             }
 
-            var lastRun = new Dictionary<int, DateTime>();
+            var lastRun = new Dictionary<int, int>();
             foreach (var symbolId in symbols.Select(x => x.Id))
             {
-                var maxDate = await _context.PullDowns
+                var maxEpoch = await _context.PullDowns
                     .Where(x => x.SymbolId == symbolId)
-                    .MaxAsync(x => (DateTime?) x.TickResponseEnd);
+                    .MaxAsync(x => (int?) x.TickEndEpoch);
                     
-                lastRun[symbolId] = maxDate ?? InitialStart;
+                lastRun[symbolId] = maxEpoch ?? 0;
             }
 
             var symbolsDone = new HashSet<string>();
@@ -66,7 +66,7 @@ namespace CStafford.MoneyTree.Application
 
                     _logger.LogInformation("Symbol {symbol} last response date {lastRun}", symbol.Name, lastRunEnded.ToString("g"));
 
-                    var ticks = await _api.GetTicks(symbol, lastRunEnded.AddMinutes(1));
+                    var ticks = await _api.GetTicks(symbol, Constants.Epoch.AddMinutes(lastRunEnded + 1));
 
                     if (!ticks.Any())
                     {
@@ -75,16 +75,15 @@ namespace CStafford.MoneyTree.Application
                         continue;
                     }
 
-                    var minResponseTime = ticks.Min(x => x.OpenTime);
-                    var maxResponseTime = ticks.Max(x => x.OpenTime);
+                    var minResponseEpoch = ticks.Min(x => x.TickEpoch);
+                    var maxResponseEpoch = ticks.Max(x => x.TickEpoch);
 
                     var pulldown = new PullDown
                     {
                         RunTime = DateTime.UtcNow,
                         SymbolId = symbol.Id,
-                        TickRequestTime = lastRunEnded,
-                        TickResponseStart = minResponseTime,
-                        TickResponseEnd = maxResponseTime
+                        TickStartEpoch = minResponseEpoch,
+                        TickEndEpoch = maxResponseEpoch
                     };
 
                     await _context.Insert(pulldown);
@@ -98,13 +97,13 @@ namespace CStafford.MoneyTree.Application
 
                     pulldown.Finished = true;
                     await _context.Update(pulldown);
-                    lastRun[symbol.Id] = maxResponseTime;
+                    lastRun[symbol.Id] = maxResponseEpoch;
 
                     _logger.LogInformation("Symbol {symbol}: saved {number} ticks from {start} to {end}",
                                         symbol.Name,
                                         ticks.Count(),
-                                        minResponseTime.ToString("g"),
-                                        maxResponseTime.ToString("g"));
+                                        (Constants.Epoch.AddMinutes(minResponseEpoch)).ToString("g"),
+                                        (Constants.Epoch.AddMinutes(maxResponseEpoch)).ToString("g"));
                 }
             }
 

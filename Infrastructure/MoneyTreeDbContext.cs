@@ -68,37 +68,39 @@ namespace CStafford.MoneyTree.Infrastructure
             await transaction.CommitAsync();
         }
 
-        public async Task<IEnumerable<(int SymbolId, decimal VolumeUsd)>> GetSymbolIdToVolume(DateTime start, DateTime end)
+        public async Task<IEnumerable<(int SymbolId, decimal VolumeUsd)>> GetSymbolIdToVolume(
+            int startEpoch, 
+            int endEpoch)
         {
             const string sql = 
                 "select SymbolId, sum(VolumeUsd) " +
-                "from Ticks where OpenTime >= @start and OpenTime <= @end group by SymbolId";
+                "from Ticks where TickEpoch >= @startEpoch and TickEpoch <= @endEpoch group by SymbolId";
 
-            return await _connection.QueryAsync<(int, decimal)>(sql, new { start, end });
+            return await _connection.QueryAsync<(int, decimal)>(sql, new { startEpoch, endEpoch });
         }
 
-        public async Task<List<int>> FindSymbolsInExistence(DateTime existenceDate)
+        public async Task<List<int>> FindSymbolsInExistence(int existenceEpoch)
         {
-            const string sql = "select SymbolId, min(OpenTime) from Ticks group by SymbolId";
+            const string sql = "select SymbolId, min(TickEpoch) from Ticks group by SymbolId";
 
-            var minDates = await _connection.QueryAsync<(int SymbolId, DateTime minDate)>(sql);
-            return minDates.Where(x => x.minDate <= existenceDate).Select(x => x.SymbolId).ToList();
+            var minDates = await _connection.QueryAsync<(int symbolId, int minTickEpoch)>(sql);
+            return minDates.Where(x => x.minTickEpoch <= existenceEpoch).Select(x => x.symbolId).ToList();
         }
 
-        public async Task<decimal> MarketValue(int symbolId, DateTime atDate)
+        public async Task<decimal> MarketValue(int symbolId, int dateEpoch)
         {
             const string sql = 
-                "select ClosePrice from Ticks where SymbolId = @symbolId and OpenTime <= @atDate order by OpenTime desc limit 1";
+                "select ClosePrice from Ticks where SymbolId = @symbolId and TickEpoch <= @dateEpoch order by OpenTime desc limit 1";
 
-            return await _connection.QueryFirstAsync<decimal>(sql, new { symbolId, atDate });
+            return await _connection.QueryFirstAsync<decimal>(sql, new { symbolId, dateEpoch });
         }
 
-        public async Task<List<Tick>> GetTicksAt(DateTime dateAt)
+        public async Task<List<(int symbolId, decimal closePrice, decimal volumeUsd)>> GetTicksAt(int dateEpoch)
         {
             return (await _connection
-                .QueryAsync<Tick>(
-                    "select * from Ticks where OpenTime = @dateAt",
-                    new { dateAt }))
+                .QueryAsync<(int symbolId, decimal closePrice, decimal volumeUsd)>(
+                    "select symbolId, closePrice, volumeUsd from Ticks where TickEpoch = @dateEpoch",
+                    new { dateEpoch }))
                 .ToList();
         }
     }

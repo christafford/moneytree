@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
 using static CStafford.MoneyTree.Application.Computer;
 using static CStafford.MoneyTree.Models.Simulation;
+using CStafford.MoneyTree.Configuration;
 
 namespace CStafford.MoneyTree.Application;
 
@@ -11,10 +12,8 @@ public class Simulator
 {
     private readonly Computer _computer;
     private readonly MoneyTreeDbContext _dbContext;
-    private readonly DbContextOptions<MoneyTreeDbContext> _options;
     private readonly ILogger<Simulator> _logger;
-    private DateTime _earliestDate;
-    private DateTime _latestDate;
+    private int _latestFromStart;
     private List<(Chart chart, Simulation simulation, ComputerContext context)> _simulationsToRun;
     private Random _random;
 
@@ -25,11 +24,9 @@ public class Simulator
     {
         _computer = computer;
         _dbContext = new MoneyTreeDbContext(options);
-        _options = options;
         _logger = logger;
         _random = new Random(System.DateTime.Now.Millisecond);
-        _earliestDate = _dbContext.Ticks.Min(x => x.OpenTime);
-        _latestDate = _dbContext.Ticks.Max(x => x.OpenTime);
+        _latestFromStart = _dbContext.Ticks.Max(x => x.TickEpoch);
         _simulationsToRun = new List<(Chart chart, Simulation simulation, ComputerContext context)>();
     }
 
@@ -49,7 +46,7 @@ public class Simulator
 
         _logger.LogInformation("Done. Now running simulations");
 
-        for (int i = 0; i < 3; i++)
+        for (int i = 0; i < 10; i++)
         {
             var lowestChart = chartIdToNumSimulations.OrderBy(x => x.Value).First().Key;
             chartIdToNumSimulations[lowestChart]++;
@@ -60,10 +57,10 @@ public class Simulator
         var simulationTasks = new List<Task>();
         foreach (var simulation in _simulationsToRun)
         {
-            simulationTasks.Add(RunSimulation(simulation.chart, simulation.simulation, simulation.context));
+            await RunSimulation(simulation.chart, simulation.simulation, simulation.context);
         }
 
-        Task.WaitAll(simulationTasks.ToArray());
+        // Task.WaitAll(simulationTasks.ToArray());
         _logger.LogInformation("Done running simulations");
     }
 
@@ -92,17 +89,17 @@ public class Simulator
 
         simulation.DepositFrequency = (DepositFrequencyEnum)_random.Next(0, 3);
         
-        var lowerRange = _earliestDate.Add(TimeSpan.FromDays(chart.DaysSymbolsMustExist));
-        var availableMinutes = _latestDate.Subtract(lowerRange).TotalMinutes;
+        var lowerRange = chart.DaysSymbolsMustExist * 24 * 60;
+        var availableMinutes = _latestFromStart - lowerRange;
 
-        simulation.SimulationStart = lowerRange.AddMinutes(_random.Next(0, (int)availableMinutes));
-        availableMinutes = _latestDate.Subtract(simulation.SimulationStart).TotalMinutes;
-        simulation.SimulationEnd = simulation.SimulationStart.AddMinutes(_random.Next(0, (int)availableMinutes));
+        simulation.StartEpoch = lowerRange + _random.Next(0, availableMinutes);
+        availableMinutes = _latestFromStart - simulation.StartEpoch;
+        simulation.EndEpoch = simulation.StartEpoch + _random.Next(0, availableMinutes);
         simulation.RunTimeStart = DateTime.Now;
         simulation.ChartId = chart.Id;
 
-        var computerContext = new ComputerContext(_options);
-        await computerContext.Init(_dbContext, chart, simulation.SimulationStart);
+        var computerContext = new ComputerContext(_dbContext);
+        await computerContext.Init(_dbContext, chart, simulation.StartEpoch);
 
         _simulationsToRun.Add((chart, simulation, computerContext));
     }
@@ -115,11 +112,25 @@ public class Simulator
         var cashOnHand = 0m;
         var assets = new List<(string symbol, decimal usdPurchasePrice, decimal quantityOwned)>();
 
-        var nextDeposit = computerContext.EvaluationTime;
+        var nextDeposit = computerContext.EvaluationEpoch;
 
-        while (computerContext.EvaluationTime <= simulation.SimulationEnd)
+        var lastReport = DateTime.Now;
+        var ticksForReport = 0;
+        var evaluateMarketMs = 0d;
+        var takeActionsMs = 0d;
+        var nextTickMs = 0d;
+        var nextTickDbTimeMs = 0d;
+        var totalTicksDone = 0;
+        var totalTicks = simulation.EndEpoch - simulation.StartEpoch;
+
+        Console.WriteLine("Starting");
+
+        while (computerContext.EvaluationEpoch <= simulation.EndEpoch)
         {
-            if (computerContext.EvaluationTime == nextDeposit)
+            ticksForReport++;
+            totalTicksDone++;
+
+            if (computerContext.EvaluationEpoch == nextDeposit)
             {
                 cashDeposited += 100m;
                 cashOnHand += 100m;
@@ -127,23 +138,29 @@ public class Simulator
                 switch(simulation.DepositFrequency)
                 {
                     case DepositFrequencyEnum.Monthly:
-                        nextDeposit = nextDeposit.AddMonths(1);
+                        nextDeposit = nextDeposit + (30 * 24 * 60);
                         break;
                     case DepositFrequencyEnum.Weekly:
-                        nextDeposit = nextDeposit.AddDays(7);
+                        nextDeposit = nextDeposit + (24 * 60);
                         break;
                     case DepositFrequencyEnum.Daily:
-                        nextDeposit = nextDeposit.AddDays(1);
+                        nextDeposit = nextDeposit + 24;
                         break;
                 }
             }
             
+            var evaluateMarketStart = DateTime.Now;
+
             var actionsToTake = _computer.EvaluateMarket(
                 chart,
                 cashOnHand > 0m,
                 assets.Select(x => (x.symbol, x.usdPurchasePrice)).ToList(),
                 computerContext);
             
+            evaluateMarketMs += DateTime.Now.Subtract(evaluateMarketStart).TotalMilliseconds;
+
+            var takeActionsStart = DateTime.Now;
+
             foreach (var actionToTake in actionsToTake)
             {
                 switch (actionToTake.action)
@@ -151,6 +168,16 @@ public class Simulator
                     case ActionToTake.Buy:
                         if (! assets.Any(x => x.symbol == actionToTake.relevantSymbol))
                         {
+                            if (actionToTake.symbolUsdValue.Value == 0)
+                            {
+                                Console.WriteLine("We have a divide by zero situation");
+                                Console.WriteLine($"actionToTake.relevantSymbol: {actionToTake.relevantSymbol}");
+                                Console.WriteLine($"Evaluation time: {(Constants.Epoch.AddMinutes(computerContext.EvaluationEpoch)).ToString("g")}");
+                                Console.WriteLine($"Cash on hand: {cashOnHand.ToString("C")}");
+
+                                throw new Exception();
+                            }
+
                             var qtyToBuy = cashOnHand / actionToTake.symbolUsdValue.Value;
                             assets.Add((actionToTake.relevantSymbol, actionToTake.symbolUsdValue.Value, qtyToBuy));
                         }
@@ -181,14 +208,42 @@ public class Simulator
                 }
             }
 
-            await computerContext.NextTick();
+            takeActionsMs += DateTime.Now.Subtract(takeActionsStart).TotalMilliseconds;
+
+            var nextTickStart = DateTime.Now;
+
+            var results = await computerContext.NextTick();
+            nextTickDbTimeMs += results.dbQueryMs;
+
+            nextTickMs += DateTime.Now.Subtract(nextTickStart).TotalMilliseconds;
+
+            var elapsedMs = (DateTime.Now - lastReport).TotalMilliseconds;
+            
+            if (elapsedMs > 30 * 1000)
+            {
+                var elapsedEvaluateMarketMs = evaluateMarketMs / ticksForReport;
+                var elapsedTakeActionsMs = takeActionsMs / ticksForReport;
+                var elapsedNextTickMs = nextTickMs / ticksForReport;
+
+                Console.WriteLine($"Elapsed: {elapsedMs}ms, EvaluateMarket: {elapsedEvaluateMarketMs}ms, TakeActions: {elapsedTakeActionsMs}ms, NextTick: {elapsedNextTickMs}ms");
+                Console.WriteLine($"NextTickDbTime: {nextTickDbTimeMs / ticksForReport}ms");
+                Console.WriteLine($"Did {ticksForReport} ticks in {elapsedMs}ms, {ticksForReport / (elapsedMs / 1000)} ticks per second");
+                Console.WriteLine($"{totalTicksDone / totalTicks * 100}% complete");
+
+                evaluateMarketMs = 0d;
+                takeActionsMs = 0d;
+                nextTickMs = 0d;
+                ticksForReport = 0;
+                nextTickDbTimeMs = 0;
+                lastReport = DateTime.Now;                
+            }
         }
 
         simulation.RunTimeEnd = DateTime.Now;
 
         foreach (var asset in assets)
         {
-            cashOnHand += asset.quantityOwned + (await _computer.MarketValue(asset.symbol, computerContext.EvaluationTime));
+            cashOnHand += asset.quantityOwned + (await _computer.MarketValue(asset.symbol, computerContext.EvaluationEpoch));
         }
 
         var gain = (cashOnHand - cashDeposited) / cashDeposited;
