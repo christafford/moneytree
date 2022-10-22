@@ -72,7 +72,6 @@ public class PortFromOld
 
                 if (!pulldownMap.ContainsKey(oldTick.PullDownId))
                 {
-                    Console.WriteLine("grabbing pulldown");
                     time = DateTime.Now;
                     
                     var sqlPulldown = $"select * from PullDowns where id = {oldTick.PullDownId}";
@@ -114,7 +113,7 @@ public class PortFromOld
             Console.WriteLine($"Total selectOldMs: {selectOldMs}");
             Console.WriteLine($"Total pulldownMs: {pulldownMs}");
             Console.WriteLine($"Total insertNewTicksMs: {insertNewTicksMs}");
-            Console.WriteLine($"Did {count} of {grandTotal} ticks - {count / grandTotal * 100d}%");
+            Console.WriteLine($"Did {count} of {grandTotal} ticks - {count / (decimal) grandTotal * 100}%");
 
             selectOldMs = 0d;
             pulldownMs = 0d;
