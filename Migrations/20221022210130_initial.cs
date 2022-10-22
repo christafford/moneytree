@@ -13,6 +13,8 @@ namespace moneytree.Migrations
             migrationBuilder.AlterDatabase()
                 .Annotation("MySql:CharSet", "utf8mb4");
 
+            migrationBuilder.Sql("SET default_storage_engine=ARIA");
+            
             migrationBuilder.CreateTable(
                 name: "Charts",
                 columns: table => new
@@ -94,8 +96,6 @@ namespace moneytree.Migrations
                 name: "Ticks",
                 columns: table => new
                 {
-                    Id = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
                     TickEpoch = table.Column<int>(type: "int", nullable: false),
                     SymbolId = table.Column<int>(type: "int", nullable: false),
                     ClosePrice = table.Column<decimal>(type: "decimal(65,30)", nullable: false),
@@ -104,7 +104,7 @@ namespace moneytree.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Ticks", x => x.Id);
+                    table.PrimaryKey("PK_Ticks", x => new { x.TickEpoch, x.SymbolId });
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
         }

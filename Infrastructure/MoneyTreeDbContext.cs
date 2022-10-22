@@ -26,6 +26,12 @@ namespace CStafford.MoneyTree.Infrastructure
             }
         }
 
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<Tick>()
+                .HasKey(x => new { x.TickEpoch, x.SymbolId });
+        }
+
         public async Task Insert(Symbol symbol)
         {
             using var transaction = _connection.BeginTransaction();

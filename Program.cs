@@ -1,4 +1,5 @@
-﻿using CStafford.MoneyTree.Application;
+﻿using CStafford.MoneyTree;
+using CStafford.MoneyTree.Application;
 using CStafford.MoneyTree.Configuration;
 using CStafford.MoneyTree.Infrastructure;
 using CStafford.MoneyTree.Services;
@@ -7,6 +8,12 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+
+if (args.Any(x => x == "--port"))
+{
+    await PortFromOld.Port();
+    return;
+}
 
 var config = new ConfigurationBuilder()
     .SetBasePath(Directory.GetCurrentDirectory())

@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace moneytree.Migrations
 {
     [DbContext(typeof(MoneyTreeDbContext))]
-    [Migration("20221022152256_initial")]
+    [Migration("20221022210130_initial")]
     partial class initial
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -139,9 +139,11 @@ namespace moneytree.Migrations
 
             modelBuilder.Entity("CStafford.MoneyTree.Models.Tick", b =>
                 {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
+                    b.Property<int>("TickEpoch")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SymbolId")
+                        .HasColumnType("int");
 
                     b.Property<decimal>("ClosePrice")
                         .HasColumnType("decimal(65,30)");
@@ -149,16 +151,10 @@ namespace moneytree.Migrations
                     b.Property<int>("PullDownId")
                         .HasColumnType("int");
 
-                    b.Property<int>("SymbolId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("TickEpoch")
-                        .HasColumnType("int");
-
                     b.Property<decimal>("VolumeUsd")
                         .HasColumnType("decimal(65,30)");
 
-                    b.HasKey("Id");
+                    b.HasKey("TickEpoch", "SymbolId");
 
                     b.ToTable("Ticks");
                 });
