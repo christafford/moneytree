@@ -37,7 +37,7 @@ public class Simulator
         Console.WriteLine("Setting up charts for simulation runs");
 
         await EnsureCharts(1000);
-        foreach (var chart in _dbContext.Charts)
+        foreach (var chart in _dbContext.Charts.OrderBy(x => Guid.NewGuid()))
         {
             _charts.Enqueue(chart);
         }
@@ -163,10 +163,10 @@ public class Simulator
                         nextDeposit = nextDeposit + (30 * 24 * 60);
                         break;
                     case DepositFrequencyEnum.Weekly:
-                        nextDeposit = nextDeposit + (24 * 60);
+                        nextDeposit = nextDeposit + (7 * 24 * 60);
                         break;
                     case DepositFrequencyEnum.Daily:
-                        nextDeposit = nextDeposit + 24;
+                        nextDeposit = nextDeposit + (24 * 60);
                         break;
                 }
             }
@@ -202,7 +202,7 @@ public class Simulator
                             assets.Add((actionToTake.relevantSymbol, actionToTake.symbolUsdValue.Value, qtyToBuy));
                             SimulationLog(  simulation,
                                             $"Buy {actionToTake.relevantSymbol}",
-                                            $"Cash on Hand: {cashOnHand}, qty: {qtyToBuy} at {actionToTake.symbolUsdValue.Value.ToString("c")}",
+                                            $"Cash on Hand: {cashOnHand.ToString("C")}, qty: {qtyToBuy.ToString("0.####")} at {actionToTake.symbolUsdValue.Value.ToString("C")}",
                                             computerContext.EvaluationEpoch,
                                             dbContext);
                         }
@@ -221,7 +221,7 @@ public class Simulator
                             assets.Add((actionToTake.relevantSymbol, mediatedBuyPrice, totalQty));
                             SimulationLog(  simulation,
                                             $"Buy {actionToTake.relevantSymbol}",
-                                            $"Cash on Hand: {cashOnHand}, qty: {qtyToBuy} at {actionToTake.symbolUsdValue.Value.ToString("c")}" 
+                                            $"Cash on Hand: {cashOnHand.ToString("C")}, qty: {qtyToBuy.ToString("0.####")} at {actionToTake.symbolUsdValue.Value.ToString("C")}" 
                                                 + $", mediatedBuyPrice: {mediatedBuyPrice.ToString("c")}, totalQty: {totalQty}",
                                             computerContext.EvaluationEpoch,
                                             dbContext);
@@ -235,7 +235,7 @@ public class Simulator
                         assets.Remove(asset);
                         SimulationLog(  simulation,
                                         $"Sell {asset.symbol}",
-                                        $"Cash on Hand Now: {cashOnHand}, qty: {asset.quantityOwned} at {actionToTake.symbolUsdValue.Value.ToString("c")}",
+                                        $"Cash on Hand Now: {cashOnHand.ToString("C")}, qty: {asset.quantityOwned.ToString("0.####")} at {actionToTake.symbolUsdValue.Value.ToString("C")}",
                                         computerContext.EvaluationEpoch,
                                         dbContext);
                         break;
@@ -277,7 +277,7 @@ public class Simulator
 
             SimulationLog(  simulation,
                             $"Finished, Evaluating {asset.symbol}",
-                            $"Cash on Hand Now: {cashOnHand}, qty: {asset.quantityOwned} at {marketValue.ToString("c")}",
+                            $"Cash on Hand Now: {cashOnHand.ToString("C")}, qty: {asset.quantityOwned.ToString("0.####")} at {marketValue.ToString("C")}",
                             computerContext.EvaluationEpoch,
                             dbContext);
         }
@@ -295,6 +295,11 @@ public class Simulator
         simulation.ResultGainPercentage = gain;
 
         dbContext.Insert(simulation);
+        foreach (var log in simulation.Logs)
+        {
+            log.SimulationId = simulation.Id;
+            dbContext.Insert(log);
+        }
 
         Console.WriteLine("\n---------------\nSimulation:\n---------------");
         Console.WriteLine(simulation.ToString());
@@ -316,6 +321,6 @@ public class Simulator
             Message = message
         };
 
-        dbContext.Insert(log);
+        simulation.Logs.Add(log);
     }
 }

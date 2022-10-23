@@ -1,9 +1,15 @@
 using CStafford.MoneyTree.Configuration;
+using Dapper.Contrib.Extensions;
 
 namespace CStafford.MoneyTree.Models
 {
     public class Simulation
     {
+        public Simulation()
+        {
+            Logs = new List<SimulationLog>();
+        }
+
         [Dapper.Contrib.Extensions.Key]
         [System.ComponentModel.DataAnnotations.Key]
         public int Id { get; set; }
@@ -33,5 +39,8 @@ namespace CStafford.MoneyTree.Models
             $"RunTimeEnd: {RunTimeEnd.ToString("g")}\n" +
             $">>>>> ResultGainPercentage: {ResultGainPercentage}";
         }
+
+        [Write(false)]
+        public List<SimulationLog> Logs { get; set; }
     }
 }
