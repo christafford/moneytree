@@ -39,10 +39,10 @@ var builder = new HostBuilder()
                         .EnableStringComparisonTranslations(true);
                 }))
             .AddAutoMapper(typeof(Program))
-            .AddScoped<BinanceApiService>()
-            .AddScoped<DownloadTicks>()
-            .AddScoped<Computer>()
-            .AddScoped<Simulator>()
+            .AddSingleton<BinanceApiService>()
+            .AddSingleton<DownloadTicks>()
+            .AddSingleton<Computer>()
+            .AddSingleton<Simulator>()
             .AddLogging(x =>
             {
                 x.AddConsole();

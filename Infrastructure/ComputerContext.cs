@@ -1,5 +1,4 @@
 using CStafford.MoneyTree.Models;
-using Microsoft.EntityFrameworkCore;
 
 namespace CStafford.MoneyTree.Infrastructure;
 
@@ -11,8 +10,8 @@ public class ComputerContext
     private int _firstTickEpoch;
     private int _lastTickEpoch;
     private List<int> _validSymbolIds;
-    private IDictionary<int, (int symbolId, decimal closePrice, decimal volumeUsd)> _firstTicks;
-    private IDictionary<int, (int symbolId, decimal closePrice, decimal volumeUsd)> _lastTicks;
+    private IDictionary<int, (decimal closePrice, decimal volumeUsd)> _firstTicks;
+    private IDictionary<int, (decimal closePrice, decimal volumeUsd)> _lastTicks;
 
     public int EvaluationEpoch => _lastTickEpoch;
 
@@ -21,7 +20,7 @@ public class ComputerContext
         _dbContext = dbContext;
     }
 
-    public async Task Init(MoneyTreeDbContext dbContext, Chart chart, int evaluationEpoch)
+    public void Init(Chart chart, int evaluationEpoch)
     {
         _chart = chart;
         _firstTickEpoch = evaluationEpoch - chart.MinutesForMarketAnalysis;
@@ -29,13 +28,13 @@ public class ComputerContext
         
         var validationEpoch = evaluationEpoch - (chart.DaysSymbolsMustExist * 24 * 60);
 
-        _validSymbolIds = await dbContext.FindSymbolsInExistence(validationEpoch);
+        _validSymbolIds = _dbContext.FindSymbolsInExistence(validationEpoch).ToList();
 
-        var volumesTraded = await dbContext.GetSymbolIdToVolume(_firstTickEpoch, _lastTickEpoch);
+        var volumesTraded = _dbContext.GetSymbolIdToVolume(_firstTickEpoch, _lastTickEpoch);
         
         _symbolToVolumeUsd = volumesTraded.ToDictionary(x => x.SymbolId, x => x.VolumeUsd);
     
-        foreach (var symbolId in await dbContext.Symbols.Select(x => x.Id).ToListAsync())
+        foreach (var symbolId in _dbContext.Symbols.Select(x => x.Id).ToList())
         {
             if (!_symbolToVolumeUsd.ContainsKey(symbolId))
             {
@@ -43,8 +42,8 @@ public class ComputerContext
             }
         }
 
-        _firstTicks = (await dbContext.GetTicksAt(_firstTickEpoch)).ToDictionary(x => x.symbolId);
-        _lastTicks = (await dbContext.GetTicksAt(_lastTickEpoch)).ToDictionary(x => x.symbolId);
+        _firstTicks = _dbContext.GetTicksAt(_firstTickEpoch);
+        _lastTicks = _dbContext.GetTicksAt(_lastTickEpoch);
     }
 
     public List<(int symbolId, decimal volumeUsd, decimal percentageGain, decimal closePrice)> MarketAnalysis()
@@ -68,7 +67,7 @@ public class ComputerContext
         return toReturn;
     }
 
-    public async Task<int> NextTick()
+    public void NextTick()
     {
         foreach (var symbolId in _firstTicks.Keys)
         {
@@ -79,19 +78,13 @@ public class ComputerContext
         _firstTickEpoch++;
         _lastTickEpoch++;
 
-        var dbStartTimer = DateTime.Now;
-
-        _firstTicks = (await _dbContext.GetTicksAt(_firstTickEpoch)).ToDictionary(x => x.symbolId);
-        _lastTicks = (await _dbContext.GetTicksAt(_lastTickEpoch)).ToDictionary(x => x.symbolId);
-
-        var dbStopTimer = DateTime.Now;
+        _firstTicks = _dbContext.GetTicksAt(_firstTickEpoch);
+        _lastTicks = _dbContext.GetTicksAt(_lastTickEpoch);
 
         foreach (var symbolId in _lastTicks.Keys)
         {
             var tick = _lastTicks[symbolId];
             _symbolToVolumeUsd[symbolId] += tick.volumeUsd;
         }
-
-        return _lastTickEpoch;
     }
 }

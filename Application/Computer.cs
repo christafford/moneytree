@@ -14,34 +14,22 @@ namespace CStafford.MoneyTree.Application
             Hold
         }
 
-        private readonly MoneyTreeDbContext _dbContext;
         private readonly ILogger<Computer> _logger;
-        private static Dictionary<int, string> _symbolIdToName;
-        private static Dictionary<string, int> _symbolNameToId;
-        private static Object _lock = new Object();
+        private Dictionary<int, string> _symbolIdToName;
+        private Dictionary<string, int> _symbolNameToId;
 
         public Computer(MoneyTreeDbContext dbContext, ILogger<Computer> logger)
         {
-            _dbContext = dbContext;
             _logger = logger;
 
-            if (_symbolIdToName == null)
-            {
-                lock (_lock)
-                {
-                    if (_symbolIdToName == null)
-                    {
-                        _symbolIdToName = _dbContext.Symbols.ToDictionary(x => x.Id, x => x.Name);
-                        _symbolNameToId = _dbContext.Symbols.ToDictionary(x => x.Name, x => x.Id);
-                    }
-                }
-            }
+            _symbolIdToName = dbContext.Symbols.ToDictionary(x => x.Id, x => x.Name);
+            _symbolNameToId = dbContext.Symbols.ToDictionary(x => x.Name, x => x.Id);
         }
 
-        public async Task<decimal> MarketValue(string symbol, int atEpoch)
+        public decimal MarketValue(string symbol, int atEpoch, MoneyTreeDbContext dbContext)
         {
             var symbolId = _symbolNameToId[symbol];
-            return await _dbContext.MarketValue(symbolId, atEpoch);
+            return dbContext.MarketValue(symbolId, atEpoch);
         }
 
         public List<(ActionToTake action, string relevantSymbol, decimal? symbolUsdValue)> EvaluateMarket(
@@ -85,7 +73,7 @@ namespace CStafford.MoneyTree.Application
                         if (toBuy == default)
                         {
                             Console.WriteLine("Nonsense - how can there be no reasonable value for what we need here.");
-                    }
+                        }
 
                         toReturn.Add((
                             ActionToTake.Buy,
@@ -97,8 +85,13 @@ namespace CStafford.MoneyTree.Application
                 foreach (var asset in assets)
                 {
                     var assetSymbolId = _symbolNameToId[asset.symbol];
-                    var assetCurrent = marketContext.First(x => x.symbolId == assetSymbolId);
+                    var assetCurrent = marketContext.FirstOrDefault(x => x.symbolId == assetSymbolId);
                     
+                    if (assetCurrent == default)
+                    {
+                        continue;
+                    }
+
                     var diff = (assetCurrent.closePrice - asset.usdAtPurchase) / asset.usdAtPurchase;
                     
                     if (diff >= chart.ThresholdToRiseForSell || (diff * -1) >= chart.ThresholdToDropForSell)

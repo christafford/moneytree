@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using static CStafford.MoneyTree.Application.Computer;
 using static CStafford.MoneyTree.Models.Simulation;
 using CStafford.MoneyTree.Configuration;
+using System.Collections.Concurrent;
 
 namespace CStafford.MoneyTree.Application;
 
@@ -14,9 +15,7 @@ public class Simulator
     private readonly MoneyTreeDbContext _dbContext;
     private readonly ILogger<Simulator> _logger;
     private int _latestFromStart;
-    private List<(Chart chart, Simulation simulation, ComputerContext context)> _simulationsToRun;
-    private Random _random;
-
+    private ConcurrentQueue<Chart> _charts;
     private static DateTime _lastReported = DateTime.Now;
     private static int _numTicksSinceReport = 0;
     private static Object _lock = new Object();
@@ -29,16 +28,19 @@ public class Simulator
         _computer = computer;
         _dbContext = new MoneyTreeDbContext(options);
         _logger = logger;
-        _random = new Random(System.DateTime.Now.Millisecond);
         _latestFromStart = _dbContext.Ticks.Max(x => x.TickEpoch);
-        _simulationsToRun = new List<(Chart chart, Simulation simulation, ComputerContext context)>();
+        _charts = new ConcurrentQueue<Chart>();
     }
 
     public async Task Run()
     {
-        _logger.LogInformation("Setting up charts for simulation runs");
+        Console.WriteLine("Setting up charts for simulation runs");
 
         await EnsureCharts(1000);
+        foreach (var chart in _dbContext.Charts)
+        {
+            _charts.Enqueue(chart);
+        }
 
         var chartIdToNumSimulations = new Dictionary<Chart, int>();
         var charts = await _dbContext.Charts.ToListAsync();
@@ -48,71 +50,45 @@ public class Simulator
             chartIdToNumSimulations.Add(chart, await _dbContext.Simulations.CountAsync(x => x.ChartId == chart.Id));
         }
 
-        _logger.LogInformation("Done. Now running simulations");
+        Console.WriteLine("Done. Now running simulations");
 
-        for (int i = 0; i < 10; i++)
+        var threads = new List<Thread>();
+        for (int i = 0; i < 15; i++)
         {
-            var lowestChart = chartIdToNumSimulations.OrderBy(x => x.Value).First().Key;
-            chartIdToNumSimulations[lowestChart]++;
-            try
-            {
-                await AddSimulation(lowestChart);
-            }
-            catch (Exception ex)
-            {
-                if (ex.Message.Contains("Sequence contains no matching element"))
-                {
-                    Console.WriteLine("Error - symbol wasn't downloaded over span");
-                    continue;
-                }
-                throw;
-            }
-
-            _logger.LogInformation("Added simulation {0}", i);
+            var thread = new Thread(new ThreadStart(Worker));
+            thread.Start();
+            threads.Add(thread);
         }
 
-        var simulationTasks = new List<Task>();
-        foreach (var simulation in _simulationsToRun)
+        foreach (var thread in threads)
         {
-            simulationTasks.Add(RunSimulation(simulation.chart, simulation.simulation, simulation.context));
-        }
-        Task.WaitAll(simulationTasks.ToArray());
+            thread.Join();
+        }   
     }
 
     private async Task EnsureCharts(int num)
     {
         var currentNum = _dbContext.Charts.Count();
 
-            for (int i = 0; i < num - currentNum; i++)
-            {
-                var chart = new Chart();
-                
-                chart.MinutesForMarketAnalysis = _random.Next(30, 2001);
-                chart.NumberOfHighestTradedForMarketAnalysis = _random.Next(3, 9);
-                chart.DaysSymbolsMustExist = _random.Next(0, 46);
-                chart.PercentagePlacementForSecurityPick = (decimal) _random.NextDouble();
-                chart.ThresholdToRiseForSell = (0.5m + (decimal) (_random.NextDouble() * 9.5)) / 100m;
-                chart.ThresholdToDropForSell = (0.5m + (decimal) (_random.NextDouble() * 9.5)) / 100m;
+        var random = new Random();
 
-                await _dbContext.Insert(chart);
-            }
+        for (int i = 0; i < num - currentNum; i++)
+        {
+            var chart = new Chart();
+            
+            chart.MinutesForMarketAnalysis = random.Next(30, 2001);
+            chart.NumberOfHighestTradedForMarketAnalysis = random.Next(3, 9);
+            chart.DaysSymbolsMustExist = random.Next(0, 46);
+            chart.PercentagePlacementForSecurityPick = (decimal) random.NextDouble();
+            chart.ThresholdToRiseForSell = (0.5m + (decimal) (random.NextDouble() * 9.5)) / 100m;
+            chart.ThresholdToDropForSell = (0.5m + (decimal) (random.NextDouble() * 9.5)) / 100m;
+
+            await _dbContext.Insert(chart);
+        }
     }
 
-    private async Task AddSimulation(Chart chart)
+    private void Worker()
     {
-        var simulation = new Simulation();
-
-        simulation.DepositFrequency = (DepositFrequencyEnum)_random.Next(0, 3);
-        
-        var lowerRange = chart.DaysSymbolsMustExist * 24 * 60;
-        var availableMinutes = _latestFromStart - lowerRange;
-
-        simulation.StartEpoch = lowerRange + _random.Next(0, availableMinutes);
-        availableMinutes = _latestFromStart - simulation.StartEpoch;
-        simulation.EndEpoch = simulation.StartEpoch + _random.Next(0, availableMinutes);
-        simulation.RunTimeStart = DateTime.Now;
-        simulation.ChartId = chart.Id;
-
         var dbOptionsBuilder = new DbContextOptionsBuilder<MoneyTreeDbContext>()
             .UseMySql(Constants.ConnectionString,
                 ServerVersion.AutoDetect(Constants.ConnectionString),
@@ -126,17 +102,41 @@ public class Simulator
 
                 });
                 
-        var newContext = new MoneyTreeDbContext(dbOptionsBuilder.Options);
+        var workerDbContext = new MoneyTreeDbContext(dbOptionsBuilder.Options);
+        var computerContext = new ComputerContext(workerDbContext);
+        var random = new Random();
 
-        var computerContext = new ComputerContext(newContext);
-        await computerContext.Init(_dbContext, chart, simulation.StartEpoch);
+        while (true)
+        {
+            if (!_charts.TryDequeue(out Chart chart))
+            {
+                Thread.Sleep(1000);
+                continue;
+            }
 
-        _simulationsToRun.Add((chart, simulation, computerContext));
+            _charts.Enqueue(chart);
+
+            var simulation = new Simulation();
+
+            simulation.DepositFrequency = (DepositFrequencyEnum)random.Next(0, 3);
+            
+            var lowerRange = chart.DaysSymbolsMustExist * 24 * 60;
+            var availableMinutes = _latestFromStart - lowerRange;
+
+            simulation.StartEpoch = lowerRange + random.Next(0, availableMinutes);
+            availableMinutes = _latestFromStart - simulation.StartEpoch;
+            simulation.EndEpoch = simulation.StartEpoch + random.Next(0, availableMinutes);
+            simulation.RunTimeStart = DateTime.Now;
+            simulation.ChartId = chart.Id;
+
+            computerContext.Init(chart, simulation.StartEpoch);
+            RunSimulation(chart, simulation, computerContext, workerDbContext);
+        }
     }
 
-    private async Task RunSimulation(Chart chart, Simulation simulation, ComputerContext computerContext)
+    private void RunSimulation(Chart chart, Simulation simulation, ComputerContext computerContext, MoneyTreeDbContext dbContext)
     {
-        _logger.LogInformation("Running simulation for:\n{chart}\nand simulation:\n{simulation}", chart, simulation);
+        Console.WriteLine($"Running simulation for:\n{chart}\nand simulation:\n{simulation}");
 
         var cashDeposited = 0m;
         var cashOnHand = 0m;
@@ -154,6 +154,8 @@ public class Simulator
             {
                 cashDeposited += 100m;
                 cashOnHand += 100m;
+
+                SimulationLog(simulation, "Deposit", "$100.00", computerContext.EvaluationEpoch, dbContext);
 
                 switch(simulation.DepositFrequency)
                 {
@@ -198,6 +200,11 @@ public class Simulator
 
                             var qtyToBuy = cashOnHand / actionToTake.symbolUsdValue.Value;
                             assets.Add((actionToTake.relevantSymbol, actionToTake.symbolUsdValue.Value, qtyToBuy));
+                            SimulationLog(  simulation,
+                                            $"Buy {actionToTake.relevantSymbol}",
+                                            $"Cash on Hand: {cashOnHand}, qty: {qtyToBuy} at {actionToTake.symbolUsdValue.Value.ToString("c")}",
+                                            computerContext.EvaluationEpoch,
+                                            dbContext);
                         }
                         else
                         {
@@ -212,6 +219,12 @@ public class Simulator
                             var mediatedBuyPrice = (portionOriginalPrice * existing.quantityOwned) + (portionNewPrice * qtyToBuy);
 
                             assets.Add((actionToTake.relevantSymbol, mediatedBuyPrice, totalQty));
+                            SimulationLog(  simulation,
+                                            $"Buy {actionToTake.relevantSymbol}",
+                                            $"Cash on Hand: {cashOnHand}, qty: {qtyToBuy} at {actionToTake.symbolUsdValue.Value.ToString("c")}" 
+                                                + $", mediatedBuyPrice: {mediatedBuyPrice.ToString("c")}, totalQty: {totalQty}",
+                                            computerContext.EvaluationEpoch,
+                                            dbContext);
                         }
 
                         cashOnHand = 0m;
@@ -220,13 +233,18 @@ public class Simulator
                         var asset = assets.First(x => x.symbol == actionToTake.relevantSymbol);
                         cashOnHand += actionToTake.symbolUsdValue.Value * asset.quantityOwned;
                         assets.Remove(asset);
+                        SimulationLog(  simulation,
+                                        $"Sell {asset.symbol}",
+                                        $"Cash on Hand Now: {cashOnHand}, qty: {asset.quantityOwned} at {actionToTake.symbolUsdValue.Value.ToString("c")}",
+                                        computerContext.EvaluationEpoch,
+                                        dbContext);
                         break;
                     case ActionToTake.Hold:
                         break;
                 }
             }
 
-            _ = await computerContext.NextTick();
+            computerContext.NextTick();
 
             var elapsedReport = DateTime.Now.Subtract(_lastReported).TotalSeconds;
 
@@ -250,15 +268,54 @@ public class Simulator
 
         foreach (var asset in assets)
         {
-            cashOnHand += asset.quantityOwned + (await _computer.MarketValue(asset.symbol, computerContext.EvaluationEpoch));
+            var marketValue = _computer.MarketValue(
+                asset.symbol,
+                computerContext.EvaluationEpoch,
+                dbContext);
+
+            cashOnHand += asset.quantityOwned * marketValue;
+
+            SimulationLog(  simulation,
+                            $"Finished, Evaluating {asset.symbol}",
+                            $"Cash on Hand Now: {cashOnHand}, qty: {asset.quantityOwned} at {marketValue.ToString("c")}",
+                            computerContext.EvaluationEpoch,
+                            dbContext);
+        }
+
+        if (cashDeposited == 0)
+        {
+            Console.WriteLine("No cash was deposited in simulation - how is this possible?");
+            Console.WriteLine("This is the simulation that failed us:");
+            Console.WriteLine(simulation);
+
+            throw new Exception();
         }
 
         var gain = (cashOnHand - cashDeposited) / cashDeposited;
         simulation.ResultGainPercentage = gain;
 
-        await _dbContext.Insert(simulation);
+        dbContext.Insert(simulation);
 
-        _logger.LogInformation("\n---------------\nSimulation:\n---------------");
-        _logger.LogInformation(simulation.ToString());
+        Console.WriteLine("\n---------------\nSimulation:\n---------------");
+        Console.WriteLine(simulation.ToString());
+    }
+
+    private static void SimulationLog(
+        Simulation simulation,
+        string action,
+        string message,
+        int evalTimeEpoch,
+        MoneyTreeDbContext dbContext)
+    {
+        var evalTime = Constants.Epoch.AddMinutes(evalTimeEpoch);
+        var log = new SimulationLog
+        {
+            SimulationId = simulation.Id,
+            Time = evalTime,
+            Action = action,
+            Message = message
+        };
+
+        dbContext.Insert(log);
     }
 }

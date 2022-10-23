@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Data;
 using System.Data.Common;
 using CStafford.MoneyTree.Models;
@@ -14,6 +15,10 @@ namespace CStafford.MoneyTree.Infrastructure
         public DbSet<PullDown> PullDowns { get; set; }
         public DbSet<Chart> Charts { get; set; }
         public DbSet<Simulation> Simulations { get; set; }
+        public DbSet<SimulationLog> SimulationLogs { get; set; }
+
+        private static ConcurrentDictionary<int, Dictionary<int, (decimal closePrice, decimal volumeUsd)>>
+            _ticksAtEpochCache = new ConcurrentDictionary<int, Dictionary<int, (decimal closePrice, decimal volumeUsd)>>();
 
         private readonly DbConnection _connection;
 
@@ -73,14 +78,17 @@ namespace CStafford.MoneyTree.Infrastructure
             await transaction.CommitAsync();
         }
 
-        public async Task Insert(Simulation simulation)
+        public void Insert(Simulation simulation)
         {
-            using var transaction = _connection.BeginTransaction();
-            await _connection.InsertAsync(simulation, transaction);
-            await transaction.CommitAsync();
+            _connection.Insert(simulation);
         }
 
-        public async Task<IEnumerable<(int SymbolId, decimal VolumeUsd)>> GetSymbolIdToVolume(
+        public void Insert(SimulationLog simulationLog)
+        {
+            _connection.Insert(simulationLog);
+        }
+
+        public IEnumerable<(int SymbolId, decimal VolumeUsd)> GetSymbolIdToVolume(
             int startEpoch, 
             int endEpoch)
         {
@@ -88,32 +96,34 @@ namespace CStafford.MoneyTree.Infrastructure
                 "select SymbolId, sum(VolumeUsd) " +
                 "from Ticks where TickEpoch >= @startEpoch and TickEpoch <= @endEpoch group by SymbolId";
 
-            return await _connection.QueryAsync<(int, decimal)>(sql, new { startEpoch, endEpoch });
+            return _connection.Query<(int, decimal)>(sql, new { startEpoch, endEpoch });
         }
 
-        public async Task<List<int>> FindSymbolsInExistence(int existenceEpoch)
+        public IEnumerable<int> FindSymbolsInExistence(int existenceEpoch)
         {
             const string sql = "select SymbolId, min(TickEpoch) from Ticks group by SymbolId";
 
-            var minDates = await _connection.QueryAsync<(int symbolId, int minTickEpoch)>(sql);
+            var minDates = _connection.Query<(int symbolId, int minTickEpoch)>(sql);
             return minDates.Where(x => x.minTickEpoch <= existenceEpoch).Select(x => x.symbolId).ToList();
         }
 
-        public async Task<decimal> MarketValue(int symbolId, int dateEpoch)
+        public decimal MarketValue(int symbolId, int dateEpoch)
         {
             const string sql = 
                 "select ClosePrice from Ticks where SymbolId = @symbolId and TickEpoch <= @dateEpoch order by TickEpoch desc limit 1";
 
-            return await _connection.QueryFirstAsync<decimal>(sql, new { symbolId, dateEpoch });
+            return _connection.QueryFirst<decimal>(sql, new { symbolId, dateEpoch });
         }
 
-        public async Task<List<(int symbolId, decimal closePrice, decimal volumeUsd)>> GetTicksAt(int dateEpoch)
+        public Dictionary<int, (decimal closePrice, decimal volumeUsd)> GetTicksAt(int dateEpoch)
         {
-            return (await _connection
-                .QueryAsync<(int symbolId, decimal closePrice, decimal volumeUsd)>(
-                    "select symbolId, closePrice, volumeUsd from Ticks where TickEpoch = @dateEpoch",
-                    new { dateEpoch }))
-                .ToList();
+            const string sql = "select SymbolId, ClosePrice, VolumeUsd from Ticks where TickEpoch = @epoch";
+                
+            return _ticksAtEpochCache.GetOrAdd(dateEpoch, epoch =>
+            {
+                var ticks = _connection.Query<(int symbolId, decimal close, decimal volumeUsd)>(sql, new { epoch });
+                return ticks.ToDictionary(x => x.symbolId, x => (x.close, x.volumeUsd));
+            });
         }
     }
 }

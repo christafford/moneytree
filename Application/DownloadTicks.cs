@@ -26,7 +26,7 @@ namespace CStafford.MoneyTree.Application
         public async Task Run()
         {
             var symbols = await GetSymbols();
-            _logger.LogInformation("Retrieved {count} symbols", symbols.Count());
+            Console.WriteLine("Retrieved {count} symbols", symbols.Count());
 
             // fix up prior run
             var unfinishedPullDowns = await _context.PullDowns.Where(x => !x.Finished).ToListAsync();
@@ -64,14 +64,14 @@ namespace CStafford.MoneyTree.Application
                 {
                     var lastRunEnded = lastRun[symbol.Id];
 
-                    _logger.LogInformation("Symbol {symbol} last response date {lastRun}", symbol.Name, lastRunEnded.ToString("g"));
+                    Console.WriteLine("Symbol {symbol} last response date {lastRun}", symbol.Name, lastRunEnded.ToString("g"));
 
                     var ticks = await _api.GetTicks(symbol, Constants.Epoch.AddMinutes(lastRunEnded + 1));
 
                     if (!ticks.Any())
                     {
                         symbolsDone.Add(symbol.Name);
-                        _logger.LogInformation("All caught up with symbol {symbol}", symbol.Name);
+                        Console.WriteLine("All caught up with symbol {symbol}", symbol.Name);
                         continue;
                     }
 
@@ -99,15 +99,13 @@ namespace CStafford.MoneyTree.Application
                     await _context.Update(pulldown);
                     lastRun[symbol.Id] = maxResponseEpoch;
 
-                    _logger.LogInformation("Symbol {symbol}: saved {number} ticks from {start} to {end}",
-                                        symbol.Name,
-                                        ticks.Count(),
-                                        (Constants.Epoch.AddMinutes(minResponseEpoch)).ToString("g"),
-                                        (Constants.Epoch.AddMinutes(maxResponseEpoch)).ToString("g"));
+                    Console.WriteLine($"Symbol {symbol.Name}: saved {ticks.Count()} ticks from " +
+                        $"{(Constants.Epoch.AddMinutes(minResponseEpoch)).ToString("g")} to " +
+                        $"{(Constants.Epoch.AddMinutes(maxResponseEpoch)).ToString("g")}");
                 }
             }
 
-            _logger.LogInformation("Finished - all ticks up to present recorded for all symbols");
+            Console.WriteLine("Finished - all ticks up to present recorded for all symbols");
         }
 
         private async Task<IEnumerable<Symbol>> GetSymbols()

@@ -29,7 +29,7 @@ namespace CStafford.MoneyTree.Models
             $"DepositFrequency: {DepositFrequency.ToString()}\n" +
             $"SimulationStart: {(Constants.Epoch.AddMinutes(StartEpoch)).ToString("g")}\n" +
             $"SimulationEnd: {(Constants.Epoch.AddMinutes(EndEpoch)).ToString("g")}\n" +
-            $"RunTimeStart: {RunTimeStart.ToString("g")}]n" +
+            $"RunTimeStart: {RunTimeStart.ToString("g")}\n" +
             $"RunTimeEnd: {RunTimeEnd.ToString("g")}\n" +
             $">>>>> ResultGainPercentage: {ResultGainPercentage}";
         }
