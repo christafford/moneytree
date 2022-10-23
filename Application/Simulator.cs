@@ -180,6 +180,7 @@ public class Simulator
                 computerContext);
 
             var takeActionsStart = DateTime.Now;
+            decimal fees = default;
 
             foreach (var actionToTake in actionsToTake)
             {
@@ -197,12 +198,15 @@ public class Simulator
 
                                 throw new Exception();
                             }
+                            fees = Constants.FeeRate * cashOnHand;
 
-                            var qtyToBuy = cashOnHand / actionToTake.symbolUsdValue.Value;
+                            var qtyToBuy = (cashOnHand - fees) / actionToTake.symbolUsdValue.Value;
                             assets.Add((actionToTake.relevantSymbol, actionToTake.symbolUsdValue.Value, qtyToBuy));
                             SimulationLog(  simulation,
                                             $"Buy {actionToTake.relevantSymbol}",
-                                            $"Cash on Hand: {cashOnHand.ToString("C")}, qty: {qtyToBuy.ToString("0.####")} at {actionToTake.symbolUsdValue.Value.ToString("C")}",
+                                            $"Cash on Hand: {cashOnHand.ToString("C")}" +
+                                                $", qty: {qtyToBuy.ToString("0.####")} at {actionToTake.symbolUsdValue.Value.ToString("C")}" +
+                                                $", fees: {fees.ToString("C")}",
                                             computerContext.EvaluationEpoch,
                                             dbContext);
                         }
@@ -211,18 +215,22 @@ public class Simulator
                             var existing = assets.First(x => x.symbol == actionToTake.relevantSymbol);
                             assets.Remove(existing);
 
+                            fees = Constants.FeeRate * cashOnHand;
+                            
                             // calculate a viable usdPurchasePrice proportional to what's owned and what's being bought now
-                            var qtyToBuy = cashOnHand / actionToTake.symbolUsdValue.Value;
+                            var qtyToBuy = (cashOnHand - fees) / actionToTake.symbolUsdValue.Value;
                             var totalQty = qtyToBuy + existing.quantityOwned;
-                            var portionOriginalPrice = existing.quantityOwned / totalQty;
-                            var portionNewPrice = qtyToBuy / totalQty;
-                            var mediatedBuyPrice = (portionOriginalPrice * existing.quantityOwned) + (portionNewPrice * qtyToBuy);
+                            var mediatedBuyPrice = ((existing.usdPurchasePrice * existing.quantityOwned) + 
+                                                        (actionToTake.symbolUsdValue.Value * qtyToBuy))
+                                                    / totalQty;
 
                             assets.Add((actionToTake.relevantSymbol, mediatedBuyPrice, totalQty));
+
                             SimulationLog(  simulation,
                                             $"Buy {actionToTake.relevantSymbol}",
-                                            $"Cash on Hand: {cashOnHand.ToString("C")}, qty: {qtyToBuy.ToString("0.####")} at {actionToTake.symbolUsdValue.Value.ToString("C")}" 
-                                                + $", mediatedBuyPrice: {mediatedBuyPrice.ToString("c")}, totalQty: {totalQty}",
+                                            $"Cash on Hand: {cashOnHand.ToString("C")}, qty: {qtyToBuy.ToString("0.####")} at {actionToTake.symbolUsdValue.Value.ToString("C")}" +
+                                                $", mediatedBuyPrice: {mediatedBuyPrice.ToString("C")}, totalQty: {totalQty}" +
+                                                $", fees: {fees.ToString("C")}",
                                             computerContext.EvaluationEpoch,
                                             dbContext);
                         }
@@ -231,11 +239,15 @@ public class Simulator
                         break;
                     case ActionToTake.Sell:
                         var asset = assets.First(x => x.symbol == actionToTake.relevantSymbol);
-                        cashOnHand += actionToTake.symbolUsdValue.Value * asset.quantityOwned;
+                        var sellValue = actionToTake.symbolUsdValue.Value * asset.quantityOwned;
+                        fees = Constants.FeeRate * sellValue;
+                        cashOnHand += sellValue - fees;
                         assets.Remove(asset);
+                        
                         SimulationLog(  simulation,
                                         $"Sell {asset.symbol}",
-                                        $"Cash on Hand Now: {cashOnHand.ToString("C")}, qty: {asset.quantityOwned.ToString("0.####")} at {actionToTake.symbolUsdValue.Value.ToString("C")}",
+                                        $"Cash on Hand Now: {cashOnHand.ToString("C")}, qty: {asset.quantityOwned.ToString("0.####")} at " +
+                                            $"{actionToTake.symbolUsdValue.Value.ToString("C")}, fees: {fees.ToString("C")}",
                                         computerContext.EvaluationEpoch,
                                         dbContext);
                         break;
