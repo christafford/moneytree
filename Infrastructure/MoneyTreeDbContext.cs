@@ -30,6 +30,12 @@ namespace CStafford.MoneyTree.Infrastructure
         {
             modelBuilder.Entity<Tick>()
                 .HasKey(x => new { x.TickEpoch, x.SymbolId });
+            
+            modelBuilder.Entity<Tick>()
+                .HasIndex(x => new { x.SymbolId, x.TickEpoch });
+            
+            modelBuilder.Entity<Tick>()
+                .HasIndex(x => new { x.TickEpoch });
         }
 
         public async Task Insert(Symbol symbol)

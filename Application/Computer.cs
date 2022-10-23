@@ -53,7 +53,7 @@ namespace CStafford.MoneyTree.Application
             var toReturn = new List<(ActionToTake action, string relevantSymbol, decimal? symbolUsdValue)>();
             var marketContext = computerContext.MarketAnalysis();
 
-            if (moneyToBurn)
+            if (marketContext.Any() && moneyToBurn)
             {
                 var marketMovers = marketContext
                     .OrderByDescending(x => x.volumeUsd)

@@ -57,7 +57,7 @@ var host = builder.Build();
 
 using var scope = host.Services.CreateAsyncScope();
 
-// await scope.ServiceProvider.GetService<Simulator>().Run();
-await scope.ServiceProvider.GetService<DownloadTicks>().Run();
+await scope.ServiceProvider.GetService<Simulator>().Run();
+//await scope.ServiceProvider.GetService<DownloadTicks>().Run();
 
 await host.RunAsync();

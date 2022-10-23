@@ -113,7 +113,7 @@ public class PortFromOld
             Console.WriteLine($"Total selectOldMs: {selectOldMs}");
             Console.WriteLine($"Total pulldownMs: {pulldownMs}");
             Console.WriteLine($"Total insertNewTicksMs: {insertNewTicksMs}");
-            Console.WriteLine($"Did {count} of {grandTotal} ticks - {count / (decimal) grandTotal * 100}%");
+            Console.WriteLine($"Did {count} of {grandTotal} ticks - {count / (double) grandTotal * 100}%");
 
             selectOldMs = 0d;
             pulldownMs = 0d;

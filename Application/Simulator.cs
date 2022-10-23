@@ -46,7 +46,7 @@ public class Simulator
 
         _logger.LogInformation("Done. Now running simulations");
 
-        for (int i = 0; i < 10; i++)
+        for (int i = 0; i < 1; i++)
         {
             var lowestChart = chartIdToNumSimulations.OrderBy(x => x.Value).First().Key;
             chartIdToNumSimulations[lowestChart]++;
@@ -228,7 +228,7 @@ public class Simulator
                 Console.WriteLine($"Elapsed: {elapsedMs}ms, EvaluateMarket: {elapsedEvaluateMarketMs}ms, TakeActions: {elapsedTakeActionsMs}ms, NextTick: {elapsedNextTickMs}ms");
                 Console.WriteLine($"NextTickDbTime: {nextTickDbTimeMs / ticksForReport}ms");
                 Console.WriteLine($"Did {ticksForReport} ticks in {elapsedMs}ms, {ticksForReport / (elapsedMs / 1000)} ticks per second");
-                Console.WriteLine($"{totalTicksDone / totalTicks * 100}% complete");
+                Console.WriteLine($"{totalTicksDone / (double)totalTicks * 100}% complete");
 
                 evaluateMarketMs = 0d;
                 takeActionsMs = 0d;
