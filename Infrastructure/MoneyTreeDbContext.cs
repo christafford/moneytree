@@ -102,7 +102,7 @@ namespace CStafford.MoneyTree.Infrastructure
         public async Task<decimal> MarketValue(int symbolId, int dateEpoch)
         {
             const string sql = 
-                "select ClosePrice from Ticks where SymbolId = @symbolId and TickEpoch <= @dateEpoch order by OpenTime desc limit 1";
+                "select ClosePrice from Ticks where SymbolId = @symbolId and TickEpoch <= @dateEpoch order by TickEpoch desc limit 1";
 
             return await _connection.QueryFirstAsync<decimal>(sql, new { symbolId, dateEpoch });
         }

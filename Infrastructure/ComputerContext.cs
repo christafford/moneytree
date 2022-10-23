@@ -13,7 +13,6 @@ public class ComputerContext
     private List<int> _validSymbolIds;
     private IDictionary<int, (int symbolId, decimal closePrice, decimal volumeUsd)> _firstTicks;
     private IDictionary<int, (int symbolId, decimal closePrice, decimal volumeUsd)> _lastTicks;
-    private static Object _lock = new Object();
 
     public int EvaluationEpoch => _lastTickEpoch;
 
@@ -69,7 +68,7 @@ public class ComputerContext
         return toReturn;
     }
 
-    public async Task<(int nextEvaluationEpoch, double dbQueryMs)> NextTick()
+    public async Task<int> NextTick()
     {
         foreach (var symbolId in _firstTicks.Keys)
         {
@@ -93,6 +92,6 @@ public class ComputerContext
             _symbolToVolumeUsd[symbolId] += tick.volumeUsd;
         }
 
-        return (_lastTickEpoch, (dbStopTimer - dbStartTimer).TotalMilliseconds);
+        return _lastTickEpoch;
     }
 }
