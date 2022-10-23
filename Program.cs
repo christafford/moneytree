@@ -21,16 +21,14 @@ var config = new ConfigurationBuilder()
     .AddEnvironmentVariables()
     .Build();
 
-var connectionString = $"Server=127.0.0.1;Port=3306;Database=MoneyTree2;User=root;Password=qwe123;SSL Mode=None;AllowPublicKeyRetrieval=True;default command timeout=0;";
-
 var builder = new HostBuilder()
     .ConfigureServices((_, services) =>
     {
         services
             .Configure<Settings>(config.GetSection("MoneyTree"))
             .AddDbContext<MoneyTreeDbContext>(options => options.UseMySql(
-                connectionString,
-                ServerVersion.AutoDetect(connectionString),
+                Constants.ConnectionString,
+                ServerVersion.AutoDetect(Constants.ConnectionString),
                 mySqlOptions =>
                 {
                     mySqlOptions
@@ -57,7 +55,18 @@ var host = builder.Build();
 
 using var scope = host.Services.CreateAsyncScope();
 
-await scope.ServiceProvider.GetService<Simulator>().Run();
-//await scope.ServiceProvider.GetService<DownloadTicks>().Run();
-
-await host.RunAsync();
+if (args.Any(x => x == "--download"))
+{
+    await scope.ServiceProvider.GetService<DownloadTicks>().Run();
+}
+if (args.Any(x => x == "--simulator"))
+{
+    while(true)
+    {
+        await scope.ServiceProvider.GetService<Simulator>().Run();
+    }
+}
+else
+{
+    Console.WriteLine("Real time trading is not yet implemented.");
+}

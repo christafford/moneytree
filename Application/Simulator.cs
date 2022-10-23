@@ -50,23 +50,31 @@ public class Simulator
 
         _logger.LogInformation("Done. Now running simulations");
 
-        while(true)
+        for (int i = 0; i < 10; i++)
         {
-            for (int i = 0; i < 50; i++)
+            var lowestChart = chartIdToNumSimulations.OrderBy(x => x.Value).First().Key;
+            chartIdToNumSimulations[lowestChart]++;
+            try
             {
-                var lowestChart = chartIdToNumSimulations.OrderBy(x => x.Value).First().Key;
-                chartIdToNumSimulations[lowestChart]++;
                 await AddSimulation(lowestChart);
-                _logger.LogInformation("Added simulation {0}", i);
             }
-
-            var simulationTasks = new List<Task>();
-            foreach (var simulation in _simulationsToRun)
+            catch (Exception ex)
             {
-                simulationTasks.Add(RunSimulation(simulation.chart, simulation.simulation, simulation.context));
+                if (ex.Message.Contains("Sequence contains no matching element"))
+                {
+                    Console.WriteLine("Error - symbol wasn't downloaded over span");
+                    continue;
+                }
+                throw;
             }
 
-            Task.WaitAll(simulationTasks.ToArray());
+            _logger.LogInformation("Added simulation {0}", i);
+        }
+
+        var simulationTasks = new List<Task>();
+        foreach (var simulation in _simulationsToRun)
+        {
+            simulationTasks.Add(RunSimulation(simulation.chart, simulation.simulation, simulation.context));
         }
     }
 
@@ -104,7 +112,22 @@ public class Simulator
         simulation.RunTimeStart = DateTime.Now;
         simulation.ChartId = chart.Id;
 
-        var computerContext = new ComputerContext(_dbContext);
+        var dbOptionsBuilder = new DbContextOptionsBuilder<MoneyTreeDbContext>()
+            .UseMySql(Constants.ConnectionString,
+                ServerVersion.AutoDetect(Constants.ConnectionString),
+                mySqlOptions =>
+                {
+                    mySqlOptions.EnableRetryOnFailure(
+                        maxRetryCount: 3,
+                        maxRetryDelay: TimeSpan.FromSeconds(1),
+                        errorNumbersToAdd: null);
+                    mySqlOptions.EnableStringComparisonTranslations(true);
+
+                });
+                
+        var newContext = new MoneyTreeDbContext(dbOptionsBuilder.Options);
+
+        var computerContext = new ComputerContext(newContext);
         await computerContext.Init(_dbContext, chart, simulation.StartEpoch);
 
         _simulationsToRun.Add((chart, simulation, computerContext));

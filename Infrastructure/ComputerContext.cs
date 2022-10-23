@@ -27,7 +27,7 @@ public class ComputerContext
         _firstTickEpoch = evaluationEpoch - chart.MinutesForMarketAnalysis;
         _lastTickEpoch = evaluationEpoch;
         
-        var validationEpoch = evaluationEpoch - (chart.DaysSymbolsMustExist * 243 * 60);
+        var validationEpoch = evaluationEpoch - (chart.DaysSymbolsMustExist * 24 * 60);
 
         _validSymbolIds = await dbContext.FindSymbolsInExistence(validationEpoch);
 
