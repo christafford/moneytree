@@ -76,6 +76,7 @@ public class Simulator
         {
             simulationTasks.Add(RunSimulation(simulation.chart, simulation.simulation, simulation.context));
         }
+        Task.WaitAll(simulationTasks.ToArray());
     }
 
     private async Task EnsureCharts(int num)
