@@ -70,28 +70,6 @@ public class PortFromOld
                 var symbolId = symbolMap[oldTick.SymbolId];
                 var epoch = ToEpoch(oldTick.OpenTime);
 
-                if (!pulldownMap.ContainsKey(oldTick.PullDownId))
-                {
-                    time = DateTime.Now;
-                    
-                    var sqlPulldown = $"select * from PullDowns where id = {oldTick.PullDownId}";
-
-                    var pulldown = oldConnection.QuerySingle<OldPulldown>(sqlPulldown);
-                    var newPulldown = new PullDown
-                    {
-                        SymbolId = symbolMap[pulldown.SymbolId],
-                        TickStartEpoch = ToEpoch(pulldown.TickRequestTime),
-                        TickEndEpoch = ToEpoch(pulldown.TickResponseEnd),
-                        RunTime = pulldown.RunTime,
-                        Finished = pulldown.Finished
-                    };
-
-                    newConnection.Insert(newPulldown);
-                    pulldownMap[pulldown.Id] = newPulldown.Id;
-
-                    pulldownMs += (DateTime.Now - time).TotalMilliseconds;
-                }
-
                 time = DateTime.Now;
                 
                 var newTick = new Tick
@@ -100,7 +78,6 @@ public class PortFromOld
                     SymbolId = symbolId,
                     ClosePrice = oldTick.ClosePrice ?? 0,
                     VolumeUsd = (oldTick.Volume ?? 0) * (oldTick.ClosePrice ?? 0),
-                    PullDownId = pulldownMap[oldTick.PullDownId]
                 };
 
                 newConnection.Insert(newTick);
@@ -132,17 +109,6 @@ public class PortFromOld
     private static string ToMySql(DateTime dateTime)
     {
         return dateTime.ToString("yyyy-MM-dd HH:mm:ss");
-    }
-
-    public class OldPulldown
-    {
-        public int Id { get; set; }
-        public int SymbolId { get; set; }
-        public DateTime TickRequestTime { get; set; }
-        public DateTime TickResponseStart { get; set; }
-        public DateTime TickResponseEnd { get; set; }
-        public DateTime RunTime { get; set; }
-        public bool Finished { get; set; }
     }
 
     public class OldTick

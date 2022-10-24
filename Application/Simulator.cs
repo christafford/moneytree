@@ -173,7 +173,7 @@ public class Simulator
                         break;
                 }
             }
-            
+
             var actionsToTake = _computer.EvaluateMarket(
                 chart,
                 cashOnHand > 0m,
@@ -202,7 +202,7 @@ public class Simulator
                             fees = Constants.FeeRate * cashOnHand;
 
                             var qtyToBuy = (cashOnHand - fees) / actionToTake.symbolUsdValue.Value;
-                            assets.Add((actionToTake.relevantSymbol, actionToTake.symbolUsdValue.Value, qtyToBuy));
+                            assets.Add((actionToTake.relevantSymbol, cashOnHand, qtyToBuy));
                             
                             if (Constants.LogSimulation)
                             {

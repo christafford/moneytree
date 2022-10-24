@@ -28,35 +28,21 @@ namespace CStafford.MoneyTree.Application
             var symbols = await GetSymbols();
             Console.WriteLine($"Retrieved {symbols.Count()} symbols");
 
-            // fix up prior run
-            var unfinishedPullDowns = await _context.PullDowns.Where(x => !x.Finished).ToListAsync();
-            foreach (var unfinished in unfinishedPullDowns)
-            {
-                unfinished.TickEndEpoch = (await _context.Ticks
-                    .Where(x => x.PullDownId == unfinished.Id)
-                    .MaxAsync(x => (int?) x.TickEpoch)) ?? unfinished.TickStartEpoch;
-
-                unfinished.Finished = true;
-                await _context.Update(unfinished);
-            }
-
-            var lastRun = new Dictionary<int, int>();
-            foreach (var symbolId in symbols.Select(x => x.Id))
-            {
-                var maxEpoch = await _context.PullDowns
-                    .Where(x => x.SymbolId == symbolId)
-                    .MaxAsync(x => (int?) x.TickEndEpoch);
-                    
-                lastRun[symbolId] = maxEpoch ?? 0;
-            }
+            var lastRun = _context
+                .GetLastEpochForEachSymbol()
+                .ToDictionary(x => x.symbolId, x => x.lastEpoch);
+            
+            symbols.Where(x => !lastRun.ContainsKey(x.Id))
+                .ToList()
+                .ForEach(x => lastRun.Add(x.Id, 0));
 
             var symbolsDone = new HashSet<string>();
 
-            // no idea why but this isn't valid
+            // junk
             symbolsDone.Add("TUSD");
-
-            // and this isn't useful
             symbolsDone.Add("USDTUSD");
+            symbolsDone.Add("USDCUSD");
+            symbolsDone.Add("USDCBUSD");
 
             while (symbols.Any(x => !symbolsDone.Contains(x.Name)))
             {
@@ -78,25 +64,12 @@ namespace CStafford.MoneyTree.Application
                     var minResponseEpoch = ticks.Min(x => x.TickEpoch);
                     var maxResponseEpoch = ticks.Max(x => x.TickEpoch);
 
-                    var pulldown = new PullDown
-                    {
-                        RunTime = DateTime.UtcNow,
-                        SymbolId = symbol.Id,
-                        TickStartEpoch = minResponseEpoch,
-                        TickEndEpoch = maxResponseEpoch
-                    };
-
-                    await _context.Insert(pulldown);
-
                     foreach (var tick in ticks)
                     {
-                        tick.PullDownId = pulldown.Id;
                         tick.SymbolId = symbol.Id;
                         await _context.Insert(tick);
                     }
 
-                    pulldown.Finished = true;
-                    await _context.Update(pulldown);
                     lastRun[symbol.Id] = maxResponseEpoch;
 
                     // Console.WriteLine($"Symbol {symbol.Name}: saved {ticks.Count()} ticks from " +

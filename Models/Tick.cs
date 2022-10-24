@@ -13,6 +13,5 @@ namespace CStafford.MoneyTree.Models
         public int SymbolId { get; set; }
         public decimal ClosePrice { get; set; }
         public decimal VolumeUsd { get; set; }
-        public int PullDownId { get; set; }
     }
 }

@@ -12,7 +12,6 @@ namespace CStafford.MoneyTree.Infrastructure
     {
         public DbSet<Tick> Ticks { get; set; }
         public DbSet<Symbol> Symbols { get; set; }
-        public DbSet<PullDown> PullDowns { get; set; }
         public DbSet<Chart> Charts { get; set; }
         public DbSet<Simulation> Simulations { get; set; }
         public DbSet<SimulationLog> SimulationLogs { get; set; }
@@ -50,20 +49,6 @@ namespace CStafford.MoneyTree.Infrastructure
             await transaction.CommitAsync();
         }
 
-        public async Task Insert(PullDown pulldown)
-        {
-            using var transaction = _connection.BeginTransaction();
-            await _connection.InsertAsync(pulldown, transaction);
-            await transaction.CommitAsync();
-        }
-
-        public async Task Update(PullDown pulldown)
-        {
-            using var transaction = _connection.BeginTransaction();
-            await _connection.UpdateAsync(pulldown, transaction);
-            await transaction.CommitAsync();
-        }
-
         public async Task Insert(Tick tick)
         {
             using var transaction = _connection.BeginTransaction();
@@ -86,6 +71,12 @@ namespace CStafford.MoneyTree.Infrastructure
         public void Insert(SimulationLog simulationLog)
         {
             _connection.Insert(simulationLog);
+        }
+
+        public IEnumerable<(int symbolId, int lastEpoch)> GetLastEpochForEachSymbol()
+        {
+            return _connection.Query<(int symbolId, int lastEpoch)>(
+                "SELECT SymbolId, MAX(TickEpoch) AS LastEpoch FROM Ticks GROUP BY SymbolId");
         }
 
         public IEnumerable<(int SymbolId, decimal VolumeUsd)> GetSymbolIdToVolume(
