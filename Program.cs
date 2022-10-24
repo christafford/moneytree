@@ -43,6 +43,7 @@ var builder = new HostBuilder()
             .AddSingleton<DownloadTicks>()
             .AddSingleton<Computer>()
             .AddSingleton<Simulator>()
+            .AddSingleton<TradeForReal>()
             .AddLogging(x =>
             {
                 x.AddConsole();
@@ -61,12 +62,9 @@ if (args.Any(x => x == "--download"))
 }
 if (args.Any(x => x == "--simulator"))
 {
-    while(true)
-    {
-        await scope.ServiceProvider.GetService<Simulator>().Run();
-    }
+    await scope.ServiceProvider.GetService<Simulator>().Run();
 }
-else
+else if (args.Any(x => x == "--real"))
 {
-    Console.WriteLine("Real time trading is not yet implemented.");
+    scope.ServiceProvider.GetService<TradeForReal>().Run();
 }

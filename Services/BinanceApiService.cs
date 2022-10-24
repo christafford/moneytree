@@ -58,5 +58,25 @@ namespace CStafford.MoneyTree.Services
 
             return symbolsResponse.Data.Select(_mapper.Map<Models.Symbol>);
         }
+
+        public async Task<decimal> GetCashOnHand()
+        {
+            return 100;
+        }
+
+        public async Task<List<(string coin, decimal qtyOwned)>> GetAssets()
+        {
+            return new List<(string coin, decimal qtyOwned)>();
+        }
+
+        public async Task<(decimal usdValue, decimal qtyBought)> DoBuy(string coin, decimal usdToSpend)
+        {
+            return (0, 0);
+        }
+
+        public async Task<(decimal usdValue, decimal qtySold)> DoSell(string coin, decimal qtyToSell)
+        {
+            return (0, 0);
+        }
     }
 }
