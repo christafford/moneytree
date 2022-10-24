@@ -34,7 +34,7 @@ namespace CStafford.MoneyTree.Application
             {
                 unfinished.TickEndEpoch = (await _context.Ticks
                     .Where(x => x.PullDownId == unfinished.Id)
-                    .MaxAsync(x => x.TickEpoch));
+                    .MaxAsync(x => (int?) x.TickEpoch)) ?? unfinished.TickStartEpoch;
 
                 unfinished.Finished = true;
                 await _context.Update(unfinished);

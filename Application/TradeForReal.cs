@@ -1,4 +1,3 @@
-using CStafford.MoneyTree.Application;
 using CStafford.MoneyTree.Configuration;
 using CStafford.MoneyTree.Infrastructure;
 using CStafford.MoneyTree.Services;
@@ -23,13 +22,16 @@ public class TradeForReal
 
     public void Run()
     {
-        var chartId = _dbContext.GetBestSimulatedChart();
+        var chartId = 590; //_dbContext.GetBestSimulatedChart();
         var chart = _dbContext.Charts.First(x => x.Id == chartId);
         
+        Console.WriteLine("Using this chart to guide us");
         Console.WriteLine(chart.ToString());
         
-        var assets = new List<(string symbol, decimal usdPurchasePrice, decimal quantityOwned)>();
-        
+        var assets = new List<(string symbol, decimal usdInvested, decimal quantityOwned)>();
+
+        Log("Starting the machine");
+
         while (true)
         {
             var startLoop = DateTime.Now;
@@ -47,7 +49,7 @@ public class TradeForReal
             var actionsToTake = _computer.EvaluateMarket(
                 chart,
                 cashOnHand > 20m,
-                assets.Select(x => (x.symbol, x.usdPurchasePrice)).ToList(),
+                assets.Select(x => (x.symbol, x.usdInvested / x.quantityOwned)).ToList(),
                 computerContext);
 
             decimal fees = default;
@@ -59,18 +61,18 @@ public class TradeForReal
                 switch (actionToTake.action)
                 {
                     case ActionToTake.Buy:
+                        Log("--------------->");
                         if (! assets.Any(x => x.symbol == actionToTake.relevantSymbol))
                         {
                             fees = Constants.FeeRate * cashOnHand;
 
-                            var qtyToBuy = (cashOnHand - fees) / actionToTake.symbolUsdValue.Value;
-
                             var buyResult = _binance.DoBuy(coin, cashOnHand).GetAwaiter().GetResult();
-                            
-                            Console.WriteLine($"Bought {buyResult.qtyBought.ToString("0.####")} of {coin} for {buyResult.usdValue.ToString("C")}");
-                            Console.WriteLine($"Estimated qty: {qtyToBuy.ToString("0.####")}");
+                            Log($"Bought {buyResult.qtyBought.ToString("0.####")} of {coin} for {buyResult.usdValue.ToString("C")}");
 
-                            assets.Add((actionToTake.relevantSymbol, actionToTake.symbolUsdValue.Value, qtyToBuy));
+                            assets.Add((
+                                actionToTake.relevantSymbol,
+                                buyResult.usdValue,
+                                buyResult.qtyBought));
                         }
                         else
                         {
@@ -79,32 +81,27 @@ public class TradeForReal
 
                             fees = Constants.FeeRate * cashOnHand;
                             
-                            // calculate a viable usdPurchasePrice proportional to what's owned and what's being bought now
-                            var qtyToBuy = (cashOnHand - fees) / actionToTake.symbolUsdValue.Value;
-                            var totalQty = qtyToBuy + existing.quantityOwned;
-                            var mediatedBuyPrice = ((existing.usdPurchasePrice * existing.quantityOwned) + 
-                                                        (actionToTake.symbolUsdValue.Value * qtyToBuy))
-                                                    / totalQty;
-
                             var buyResult = _binance.DoBuy(coin, cashOnHand).GetAwaiter().GetResult();
                             
-                            Console.WriteLine($"Bought {buyResult.qtyBought.ToString("0.####")} of {coin} for {buyResult.usdValue.ToString("C")}");
-                            Console.WriteLine($"Estimated qty: {totalQty.ToString("0.####")}");
-
-                            assets.Add((actionToTake.relevantSymbol, mediatedBuyPrice, totalQty));
+                            Log($"Bought {buyResult.qtyBought.ToString("0.####")} of {coin} for {buyResult.usdValue.ToString("C")}");
+                            
+                            var totalQty = existing.quantityOwned + buyResult.qtyBought;
+                        
+                            Log($"Already owned {existing.quantityOwned.ToString("0.####")} of {coin} with investment of {existing.usdInvested.ToString("C")}");
+                            Log($"Now own {totalQty.ToString("0.####")} with {(existing.usdInvested + buyResult.usdValue).ToString("C")} invested");
+                            
+                            assets.Add((actionToTake.relevantSymbol, existing.usdInvested + buyResult.usdValue, totalQty));
                         }
                         break;
 
                     case ActionToTake.Sell:
                         var asset = assets.First(x => x.symbol == actionToTake.relevantSymbol);
-                        var sellValue = actionToTake.symbolUsdValue.Value * asset.quantityOwned;
-                        fees = Constants.FeeRate * sellValue;
                         
                         var sellResult = _binance.DoSell(coin, asset.quantityOwned).GetAwaiter().GetResult();
-                        
-                        Console.WriteLine($"Sold {sellResult.qtySold.ToString("0.####")} of {coin} for {sellResult.usdValue.ToString("C")}");
-                        
+                        Log("--------------->");
+                        Log($"Sold {sellResult.qtySold.ToString("0.####")} of {coin} for {sellResult.usdValue.ToString("C")}");
                         assets.Remove(asset);
+
                         break;
 
                     case ActionToTake.Hold:
@@ -112,13 +109,17 @@ public class TradeForReal
                 }
             }
 
-            computerContext.NextTick();
-
             // make sure we run loop only once per minute
             if (startLoop.AddMinutes(1) > DateTime.Now)
             {
                 Thread.Sleep(startLoop.AddMinutes(1).Subtract(DateTime.Now));
             }
         }
+    }
+
+    private void Log(string message)
+    {
+        Console.WriteLine($"{DateTime.Now.ToString("g")}: {message}");
+        File.AppendAllText("/home/chris/code/moneytree/real-trading.log", $"{DateTime.Now.ToString("g")}: {message}\n");
     }
 }

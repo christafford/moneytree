@@ -35,7 +35,7 @@ namespace CStafford.MoneyTree.Application
         public List<(ActionToTake action, string relevantSymbol, decimal? symbolUsdValue)> EvaluateMarket(
             Chart chart,
             bool moneyToBurn,
-            List<(string symbol, decimal usdAtPurchase)> assets,
+            List<(string symbol, decimal avgPricePaid)> assets,
             ComputerContext computerContext)
         {
             var toReturn = new List<(ActionToTake action, string relevantSymbol, decimal? symbolUsdValue)>();
@@ -92,7 +92,7 @@ namespace CStafford.MoneyTree.Application
                         continue;
                     }
 
-                    var diff = (assetCurrent.closePrice - asset.usdAtPurchase) / asset.usdAtPurchase;
+                    var diff = (assetCurrent.closePrice - asset.avgPricePaid) / asset.avgPricePaid;
                     
                     if (diff >= chart.ThresholdToRiseForSell || (diff * -1) >= chart.ThresholdToDropForSell)
                     {

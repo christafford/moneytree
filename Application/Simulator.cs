@@ -140,7 +140,7 @@ public class Simulator
 
         var cashDeposited = 0m;
         var cashOnHand = 0m;
-        var assets = new List<(string symbol, decimal usdPurchasePrice, decimal quantityOwned)>();
+        var assets = new List<(string symbol, decimal usdInvested, decimal quantityOwned)>();
 
         var nextDeposit = computerContext.EvaluationEpoch;
 
@@ -177,7 +177,7 @@ public class Simulator
             var actionsToTake = _computer.EvaluateMarket(
                 chart,
                 cashOnHand > 0m,
-                assets.Select(x => (x.symbol, x.usdPurchasePrice)).ToList(),
+                assets.Select(x => (x.symbol, x.usdInvested / x.quantityOwned)).ToList(),
                 computerContext);
 
             decimal fees = default;
@@ -198,6 +198,7 @@ public class Simulator
 
                                 throw new Exception();
                             }
+
                             fees = Constants.FeeRate * cashOnHand;
 
                             var qtyToBuy = (cashOnHand - fees) / actionToTake.symbolUsdValue.Value;
@@ -223,19 +224,18 @@ public class Simulator
                             
                             // calculate a viable usdPurchasePrice proportional to what's owned and what's being bought now
                             var qtyToBuy = (cashOnHand - fees) / actionToTake.symbolUsdValue.Value;
-                            var totalQty = qtyToBuy + existing.quantityOwned;
-                            var mediatedBuyPrice = ((existing.usdPurchasePrice * existing.quantityOwned) + 
-                                                        (actionToTake.symbolUsdValue.Value * qtyToBuy))
-                                                    / totalQty;
 
-                            assets.Add((actionToTake.relevantSymbol, mediatedBuyPrice, totalQty));
+                            assets.Add((
+                                actionToTake.relevantSymbol,
+                                existing.usdInvested + cashOnHand,
+                                qtyToBuy + existing.quantityOwned));
 
                             if (Constants.LogSimulation)
                             {
                                 SimulationLog(  simulation,
                                                 $"Buy {actionToTake.relevantSymbol}",
                                                 $"Cash on Hand: {cashOnHand.ToString("C")}, qty: {qtyToBuy.ToString("0.####")} at {actionToTake.symbolUsdValue.Value.ToString("C")}" +
-                                                    $", mediatedBuyPrice: {mediatedBuyPrice.ToString("C")}, totalQty: {totalQty.ToString("0.####")}" +
+                                                    $", totalUsdInvested: {existing.usdInvested + cashOnHand.ToString("C")}, totalQty: {(qtyToBuy + existing.quantityOwned).ToString("0.####")}" +
                                                     $", fees: {fees.ToString("C")}",
                                                 computerContext.EvaluationEpoch,
                                                 dbContext);

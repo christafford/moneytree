@@ -69,7 +69,7 @@ namespace CStafford.MoneyTree.Services
                 throw new Exception(balances.Error.Message);
             }
 
-            return balances.Data.Balances.First(x => x.Asset == "USDT").Available;
+            return balances.Data.Balances.First(x => x.Asset == "USD").Available;
         }
 
         public async Task<(decimal usdValue, decimal qtyBought)> DoBuy(string coin, decimal usdToSpend)
@@ -78,7 +78,7 @@ namespace CStafford.MoneyTree.Services
                 coin + "USD",
                 OrderSide.Buy,
                 SpotOrderType.Market,
-                100m
+                quoteQuantity: usdToSpend
             );
 
             if (result.Error != null)
