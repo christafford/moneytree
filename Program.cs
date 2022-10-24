@@ -64,7 +64,5 @@ if (args.Any(x => x == "--simulator"))
 {
     await scope.ServiceProvider.GetService<Simulator>().Run();
 }
-else if (args.Any(x => x == "--real"))
-{
-    scope.ServiceProvider.GetService<TradeForReal>().Run();
-}
+
+scope.ServiceProvider.GetService<TradeForReal>().Run();

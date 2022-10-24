@@ -125,5 +125,20 @@ namespace CStafford.MoneyTree.Infrastructure
                 return ticks.ToDictionary(x => x.symbolId, x => (x.close, x.volumeUsd));
             });
         }
+
+        public int GetBestSimulatedChart()
+        {
+            const string sql = @"select 
+                ChartId,
+                avg(ResultGainPercentage / ((EndEpoch - StartEpoch) / (30 * 24 * 60))) * 100 as AvgGainPerMonth,
+                count(*) as simruns
+                from `Simulations`
+                -- where StartEpoch > 1159200
+                group by ChartId
+                order by AvgGainPerMonth desc
+                limit 1";
+            
+            return _connection.QueryFirst<int>(sql);
+        }
     }
 }

@@ -61,7 +61,8 @@ namespace CStafford.MoneyTree.Services
 
         public async Task<decimal> GetCashOnHand()
         {
-            return 100;
+            var balances = await _client.UsdFuturesApi.Account.GetBalancesAsync();
+            return 0;
         }
 
         public async Task<List<(string coin, decimal qtyOwned)>> GetAssets()

@@ -23,14 +23,10 @@ public class TradeForReal
 
     public void Run()
     {
-        Console.Write("Enter chart id: ");
-        
-        var chartId = int.Parse(Console.ReadLine());
+        var chartId = _dbContext.GetBestSimulatedChart();
         var chart = _dbContext.Charts.First(x => x.Id == chartId);
         
         Console.WriteLine(chart.ToString());
-        Console.WriteLine("Press enter to begin...");
-        Console.ReadLine();
         
         var assets = new List<(string symbol, decimal usdPurchasePrice, decimal quantityOwned)>();
         
