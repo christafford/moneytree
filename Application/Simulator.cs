@@ -136,15 +136,12 @@ public class Simulator
 
     private void RunSimulation(Chart chart, Simulation simulation, ComputerContext computerContext, MoneyTreeDbContext dbContext)
     {
-        Console.WriteLine($"Running simulation for:\n{chart}\nand simulation:\n{simulation}");
-
         var cashDeposited = 0m;
         var cashOnHand = 0m;
         var assets = new List<(string symbol, decimal usdInvested, decimal quantityOwned)>();
 
         var nextDeposit = computerContext.EvaluationEpoch;
-
-        Console.WriteLine("Starting");
+        var simulationLogs = new List<SimulationLog>();
 
         while (computerContext.EvaluationEpoch <= simulation.EndEpoch)
         {
@@ -157,7 +154,11 @@ public class Simulator
 
                 if (Constants.LogSimulation)
                 {
-                    SimulationLog(simulation, "Deposit", "$100.00", computerContext.EvaluationEpoch, dbContext);
+                    simulationLogs.Add(Log( simulation,
+                                            "Deposit",
+                                            "$100.00",
+                                            computerContext.EvaluationEpoch,
+                                            dbContext));
                 }
 
                 switch(simulation.DepositFrequency)
@@ -206,13 +207,14 @@ public class Simulator
                             
                             if (Constants.LogSimulation)
                             {
-                                SimulationLog(  simulation,
-                                                $"Buy {actionToTake.relevantSymbol}",
-                                                $"Cash on Hand: {cashOnHand.ToString("C")}" +
-                                                    $", qty: {qtyToBuy.ToString("0.####")} at {actionToTake.symbolUsdValue.Value.ToString("C")}" +
-                                                    $", fees: {fees.ToString("C")}",
-                                                computerContext.EvaluationEpoch,
-                                                dbContext);
+                                simulationLogs.Add(Log(
+                                    simulation,
+                                    $"Buy {actionToTake.relevantSymbol}",
+                                    $"Cash on Hand: {cashOnHand.ToString("C")}" +
+                                        $", qty: {qtyToBuy.ToString("0.####")} at {actionToTake.symbolUsdValue.Value.ToString("C")}" +
+                                        $", fees: {fees.ToString("C")}",
+                                    computerContext.EvaluationEpoch,
+                                    dbContext));
                             }
                         }
                         else
@@ -232,13 +234,14 @@ public class Simulator
 
                             if (Constants.LogSimulation)
                             {
-                                SimulationLog(  simulation,
-                                                $"Buy {actionToTake.relevantSymbol}",
-                                                $"Cash on Hand: {cashOnHand.ToString("C")}, qty: {qtyToBuy.ToString("0.####")} at {actionToTake.symbolUsdValue.Value.ToString("C")}" +
-                                                    $", totalUsdInvested: {existing.usdInvested + cashOnHand.ToString("C")}, totalQty: {(qtyToBuy + existing.quantityOwned).ToString("0.####")}" +
-                                                    $", fees: {fees.ToString("C")}",
-                                                computerContext.EvaluationEpoch,
-                                                dbContext);
+                                simulationLogs.Add(Log(
+                                    simulation,
+                                    $"Buy {actionToTake.relevantSymbol}",
+                                    $"Cash on Hand: {cashOnHand.ToString("C")}, qty: {qtyToBuy.ToString("0.####")} at {actionToTake.symbolUsdValue.Value.ToString("C")}" +
+                                        $", totalUsdInvested: {existing.usdInvested + cashOnHand.ToString("C")}, totalQty: {(qtyToBuy + existing.quantityOwned).ToString("0.####")}" +
+                                        $", fees: {fees.ToString("C")}",
+                                    computerContext.EvaluationEpoch,
+                                    dbContext));
                             }
                         }
 
@@ -253,12 +256,13 @@ public class Simulator
                         
                         if (Constants.LogSimulation)
                         {
-                            SimulationLog(  simulation,
-                                            $"Sell {asset.symbol}",
-                                            $"Cash on Hand Now: {cashOnHand.ToString("C")}, qty: {asset.quantityOwned.ToString("0.####")} at " +
-                                                $"{actionToTake.symbolUsdValue.Value.ToString("C")}, fees: {fees.ToString("C")}",
-                                            computerContext.EvaluationEpoch,
-                                            dbContext);
+                            simulationLogs.Add(Log( 
+                                simulation,
+                                $"Sell {asset.symbol}",
+                                $"Cash on Hand Now: {cashOnHand.ToString("C")}, qty: {asset.quantityOwned.ToString("0.####")} at " +
+                                    $"{actionToTake.symbolUsdValue.Value.ToString("C")}, fees: {fees.ToString("C")}",
+                                computerContext.EvaluationEpoch,
+                                dbContext));
                         }
                         break;
                     case ActionToTake.Hold:
@@ -299,11 +303,12 @@ public class Simulator
 
             if (Constants.LogSimulation)
             {
-                SimulationLog(  simulation,
-                                $"Finished, Evaluating {asset.symbol}",
-                                $"Cash on Hand Now: {cashOnHand.ToString("C")}, qty: {asset.quantityOwned.ToString("0.####")} at {marketValue.ToString("C")}",
-                                computerContext.EvaluationEpoch,
-                                dbContext);
+                simulationLogs.Add(Log( 
+                    simulation,
+                    $"Finished, Evaluating {asset.symbol}",
+                    $"Cash on Hand Now: {cashOnHand.ToString("C")}, qty: {asset.quantityOwned.ToString("0.####")} at {marketValue.ToString("C")}",
+                    computerContext.EvaluationEpoch,
+                    dbContext));
             }
         }
 
@@ -320,7 +325,8 @@ public class Simulator
         simulation.ResultGainPercentage = gain;
 
         dbContext.Insert(simulation);
-        foreach (var log in simulation.Logs)
+        
+        foreach (var log in simulationLogs)
         {
             log.SimulationId = simulation.Id;
             dbContext.Insert(log);
@@ -330,7 +336,7 @@ public class Simulator
         Console.WriteLine(simulation.ToString());
     }
 
-    private static void SimulationLog(
+    private static SimulationLog Log(
         Simulation simulation,
         string action,
         string message,
@@ -346,6 +352,6 @@ public class Simulator
             Message = message
         };
 
-        simulation.Logs.Add(log);
+        return log;
     }
 }

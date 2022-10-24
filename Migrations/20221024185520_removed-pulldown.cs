@@ -10,20 +10,20 @@ namespace moneytree.Migrations
     {
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "PullDowns");
+            // migrationBuilder.DropTable(
+            //     name: "PullDowns");
 
-            migrationBuilder.DropColumn(
-                name: "PullDownId",
-                table: "Ticks");
+            // migrationBuilder.DropColumn(
+            //     name: "PullDownId",
+            //     table: "Ticks");
 
-            migrationBuilder.AddForeignKey(
-                name: "FK_SimulationLogs_Simulations_SimulationId",
-                table: "SimulationLogs",
-                column: "SimulationId",
-                principalTable: "Simulations",
-                principalColumn: "Id",
-                onDelete: ReferentialAction.Cascade);
+            // migrationBuilder.AddForeignKey(
+            //     name: "FK_SimulationLogs_Simulations_SimulationId",
+            //     table: "SimulationLogs",
+            //     column: "SimulationId",
+            //     principalTable: "Simulations",
+            //     principalColumn: "Id",
+            //     onDelete: ReferentialAction.Cascade);
         }
 
         protected override void Down(MigrationBuilder migrationBuilder)
