@@ -1,5 +1,6 @@
 using AutoMapper;
 using Binance.Net.Clients;
+using Binance.Net.Enums;
 using Binance.Net.Objects;
 using CryptoExchange.Net.Authentication;
 using CryptoExchange.Net.Objects;
@@ -61,23 +62,48 @@ namespace CStafford.MoneyTree.Services
 
         public async Task<decimal> GetCashOnHand()
         {
-            var balances = await _client.UsdFuturesApi.Account.GetBalancesAsync();
-            return 0;
-        }
+            var balances = await _client.SpotApi.Account.GetAccountInfoAsync();
 
-        public async Task<List<(string coin, decimal qtyOwned)>> GetAssets()
-        {
-            return new List<(string coin, decimal qtyOwned)>();
+            if (balances.Error != null)
+            {
+                throw new Exception(balances.Error.Message);
+            }
+
+            return balances.Data.Balances.First(x => x.Asset == "USDT").Available;
         }
 
         public async Task<(decimal usdValue, decimal qtyBought)> DoBuy(string coin, decimal usdToSpend)
         {
-            return (0, 0);
+            var result = await _client.SpotApi.Trading.PlaceOrderAsync(
+                coin + "USD",
+                OrderSide.Buy,
+                SpotOrderType.Market,
+                100m
+            );
+
+            if (result.Error != null)
+            {
+                throw new Exception($"DoBuy: {usdToSpend.ToString("C")} for {coin + "USD"}: {result.Error.Message}");
+            }
+
+            return (usdToSpend, usdToSpend / result.Data.Price);
         }
 
         public async Task<(decimal usdValue, decimal qtySold)> DoSell(string coin, decimal qtyToSell)
         {
-            return (0, 0);
+            var result = await _client.SpotApi.Trading.PlaceOrderAsync(
+                coin + "USD",
+                OrderSide.Sell,
+                SpotOrderType.Market,
+                qtyToSell
+            );
+
+            if (result.Error != null)
+            {
+                throw new Exception($"DoSell: {qtyToSell.ToString("0.#####")} for {coin + "USD"}: {result.Error.Message}");
+            }
+
+            return (result.Data.Price * qtyToSell, result.Data.Quantity);
         }
     }
 }

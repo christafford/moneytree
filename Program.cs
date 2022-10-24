@@ -43,12 +43,12 @@ var builder = new HostBuilder()
             .AddSingleton<DownloadTicks>()
             .AddSingleton<Computer>()
             .AddSingleton<Simulator>()
-            .AddSingleton<TradeForReal>()
-            .AddLogging(x =>
-            {
-                x.AddConsole();
-                x.AddFilter("Microsoft.EntityFrameworkCore.Database.Command", LogLevel.Warning);
-            });
+            .AddSingleton<TradeForReal>();
+            // .AddLogging(x =>
+            // {
+            //     x.AddConsole();
+            //     x.AddFilter("Microsoft.EntityFrameworkCore.Database.Command", LogLevel.Warning);
+            // });
     })
     .UseConsoleLifetime();
 

@@ -64,14 +64,14 @@ namespace CStafford.MoneyTree.Application
                 {
                     var lastRunEnded = lastRun[symbol.Id];
 
-                    Console.WriteLine($"Symbol {symbol.Name} last response date {lastRunEnded.ToString("g")}");
+                    // Console.WriteLine($"Symbol {symbol.Name} last response date {lastRunEnded.ToString("g")}");
 
                     var ticks = await _api.GetTicks(symbol, Constants.Epoch.AddMinutes(lastRunEnded + 1));
 
                     if (!ticks.Any())
                     {
                         symbolsDone.Add(symbol.Name);
-                        Console.WriteLine($"All caught up with symbol {symbol.Name}");
+                        // Console.WriteLine($"All caught up with symbol {symbol.Name}");
                         continue;
                     }
 
@@ -99,9 +99,9 @@ namespace CStafford.MoneyTree.Application
                     await _context.Update(pulldown);
                     lastRun[symbol.Id] = maxResponseEpoch;
 
-                    Console.WriteLine($"Symbol {symbol.Name}: saved {ticks.Count()} ticks from " +
-                        $"{(Constants.Epoch.AddMinutes(minResponseEpoch)).ToString("g")} to " +
-                        $"{(Constants.Epoch.AddMinutes(maxResponseEpoch)).ToString("g")}");
+                    // Console.WriteLine($"Symbol {symbol.Name}: saved {ticks.Count()} ticks from " +
+                    //     $"{(Constants.Epoch.AddMinutes(minResponseEpoch)).ToString("g")} to " +
+                    //     $"{(Constants.Epoch.AddMinutes(maxResponseEpoch)).ToString("g")}");
                 }
             }
 

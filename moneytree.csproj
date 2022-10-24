@@ -11,7 +11,7 @@
   <ItemGroup>
     <PackageReference Include="AutoMapper" Version="11.0.1" />
     <PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="11.0.0" />
-    <PackageReference Include="Binance.Net" Version="8.1.2" />
+    <PackageReference Include="Binance.Net" Version="8.2.0" />
     <PackageReference Include="Dapper" Version="2.0.123" />
     <PackageReference Include="dapper.contrib" Version="2.0.78" />
     <PackageReference Include="Flurl.Http" Version="3.2.4" />
