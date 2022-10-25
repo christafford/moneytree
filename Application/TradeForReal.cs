@@ -29,6 +29,7 @@ public class TradeForReal
         Console.WriteLine(chart.ToString());
         
         var assets = new List<(string symbol, decimal usdInvested, decimal quantityOwned)>();
+        assets.Add(("FORTHUSD", 631, 156.24m));
 
         Log("Starting the machine");
 
