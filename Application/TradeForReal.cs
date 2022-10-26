@@ -25,6 +25,7 @@ public class TradeForReal
     {
         var chartId = _dbContext.GetBestSimulatedChart();
         var chart = _dbContext.Charts.First(x => x.Id == chartId);
+        var bnbusdId = _dbContext.Symbols.First(x => x.Name == "BNBUSD").Id;
         
         Console.WriteLine("Using this chart to guide us");
         Console.WriteLine(chart.ToString());
@@ -61,7 +62,13 @@ public class TradeForReal
             if (cashOnHand > 500)
             {
                 var bnb = _binance.GetAsset("BNB").Result;
-                if (bnb < 10)
+                var exchangeRate = _dbContext.Ticks
+                    .Where(x => x.SymbolId == bnbusdId)
+                    .OrderByDescending(x => x.TickEpoch)
+                    .First()
+                    .ClosePrice;
+
+                if (bnb * exchangeRate < 20)
                 {
                     Console.WriteLine("Buying $20 BNB to pay for fees");
                     _binance.DoBuy("BNB", 20).GetAwaiter().GetResult();
