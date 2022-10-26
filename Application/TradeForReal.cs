@@ -136,13 +136,26 @@ public class TradeForReal
                         
                         if (symbol.QuantityStep.HasValue)
                         {
-                            var dust = qty % symbol.QuantityStep.Value;
-                            qty = qty - dust;
+                            var numDecimals = 0;
+                            var stepStr = symbol.QuantityStep.Value.ToString();
+                            var decimalPoint = stepStr.IndexOf('.');
+                            for (var i = 1; i < stepStr.Length; i++)
+                            {
+                                if (stepStr[decimalPoint + i] == '1')
+                                {
+                                    numDecimals = i;
+                                    break;
+                                }
+                            }
+
+                            qty = Decimal.Round(qty, numDecimals, MidpointRounding.ToZero);
                         }
 
                         var sellResult = _binance.DoSell(coin, qty).GetAwaiter().GetResult();
+
                         Log("--------------->");
                         Log($"Sold {sellResult.qtySold.ToString("0.####")} of {coin} for {sellResult.usdValue.ToString("C")}");
+                        
                         assets.Remove(asset);
 
                         break;
