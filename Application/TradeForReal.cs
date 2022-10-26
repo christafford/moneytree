@@ -23,7 +23,7 @@ public class TradeForReal
 
     public void Run()
     {
-        var chartId = _dbContext.GetBestSimulatedChart();
+        var chartId = 590; // _dbContext.GetBestSimulatedChart();
         var chart = _dbContext.Charts.First(x => x.Id == chartId);
         var bnbusdId = _dbContext.Symbols.First(x => x.Name == "BNBUSD").Id;
         
@@ -130,8 +130,19 @@ public class TradeForReal
 
                     case ActionToTake.Sell:
                         var asset = assets.First(x => x.symbol == actionToTake.relevantSymbol);
+
+                        var symbol = _dbContext.Symbols.First(x => x.Name == asset.symbol);
+                        var qty = asset.quantityOwned;
                         
-                        var sellResult = _binance.DoSell(coin, asset.quantityOwned).GetAwaiter().GetResult();
+                        if (symbol.QuantityDecimals.HasValue)
+                        {
+                            qty = Decimal.Round(
+                                asset.quantityOwned,
+                                symbol.QuantityDecimals.Value,
+                                MidpointRounding.ToZero);
+                        }
+
+                        var sellResult = _binance.DoSell(coin, qty).GetAwaiter().GetResult();
                         Log("--------------->");
                         Log($"Sold {sellResult.qtySold.ToString("0.####")} of {coin} for {sellResult.usdValue.ToString("C")}");
                         assets.Remove(asset);
