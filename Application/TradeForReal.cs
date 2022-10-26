@@ -38,11 +38,11 @@ public class TradeForReal
 
             if (primaryWallet.coin != lastTransaction.coin)
             {
-                throw new Exception($"Primary wallet coin is {primaryWallet.coin} - mismatch");
+                throw new Exception($"Primary wallet coin is {primaryWallet.coin}, last action coin is {lastTransaction.coin}");
             }
 
-            assets.Add((lastTransaction.coin, lastTransaction.paidUsd, lastTransaction.qty));
-            Console.WriteLine($"starting with asset {lastTransaction.coin} - {lastTransaction.qty}, paid {lastTransaction.paidUsd}");
+            assets.Add((lastTransaction.coin + "USD", lastTransaction.paidUsd, lastTransaction.qty));
+            Console.WriteLine($"starting with asset {lastTransaction.coin + "USD"} - {lastTransaction.qty}, paid {lastTransaction.paidUsd}");
         }
         
         Log("Starting the machine");
@@ -175,8 +175,6 @@ public class TradeForReal
         var coin = match.Result("$3");
         var paidUsd = decimal.Parse(match.Result("$4"));
 
-        Console.WriteLine($"Last action was {action} {qty} of {coin} for {paidUsd.ToString("C")}");
-        
         return (coin, action, qty, paidUsd);
     }
 }
