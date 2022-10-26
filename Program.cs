@@ -74,6 +74,11 @@ while (true)
     }
     catch (Exception ex)
     {
+        if (ex.Message.Contains("Primary wallet coin is BNB, last action coin is"))
+        {
+            throw;
+        }
+        
         runner.Log($"ERROR: {ex.Message}");
         runner.Log($"ERROR: {ex.StackTrace}");
 
