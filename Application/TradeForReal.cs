@@ -70,10 +70,10 @@ public class TradeForReal
 
                 if (bnb * exchangeRate < 20)
                 {
-                    Console.WriteLine("Buying $20 BNB to pay for fees");
+                    Log("Buying $20 BNB to pay for fees");
                     _binance.DoBuy("BNB", 20).GetAwaiter().GetResult();
                     cashOnHand = _binance.GetAsset("USD").Result;
-                    Console.WriteLine($"Cash on hand now: {cashOnHand.ToString("C")}");
+                    Log($"Cash on hand now: {cashOnHand.ToString("C")}");
                 }
             }
 
@@ -139,7 +139,8 @@ public class TradeForReal
                             var numDecimals = 0;
                             var stepStr = symbol.QuantityStep.Value.ToString();
                             var decimalPoint = stepStr.IndexOf('.');
-                            for (var i = 1; i < stepStr.Length; i++)
+                            
+                            for (var i = 0; i < stepStr.Length - decimalPoint; i++)
                             {
                                 if (stepStr[decimalPoint + i] == '1')
                                 {

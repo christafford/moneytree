@@ -124,7 +124,7 @@ namespace CStafford.MoneyTree.Infrastructure
                 avg(ResultGainPercentage / ((EndEpoch - StartEpoch) / (30 * 24 * 60))) * 100 as AvgGainPerMonth,
                 count(*) as simruns
                 from `Simulations`
-                -- where StartEpoch > 1159200
+                where StartEpoch > 1159200
                 group by ChartId
                 order by AvgGainPerMonth desc
                 limit 1";
