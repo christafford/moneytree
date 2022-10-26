@@ -162,7 +162,7 @@ public class TradeForReal
         }
     }
 
-    private void Log(string message)
+    public void Log(string message)
     {
         Console.WriteLine($"{DateTime.Now.ToString("g")}: {message}");
         File.AppendAllText("/home/chris/code/moneytree/real-trading.log", $"{DateTime.Now.ToString("g")}: {message}\n");
