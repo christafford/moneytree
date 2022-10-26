@@ -134,12 +134,10 @@ public class TradeForReal
                         var symbol = _dbContext.Symbols.First(x => x.Name == asset.symbol);
                         var qty = asset.quantityOwned;
                         
-                        if (symbol.QuantityDecimals.HasValue)
+                        if (symbol.QuantityStep.HasValue)
                         {
-                            qty = Decimal.Round(
-                                asset.quantityOwned,
-                                symbol.QuantityDecimals.Value,
-                                MidpointRounding.ToZero);
+                            var dust = qty % symbol.QuantityStep.Value;
+                            qty = qty - dust;
                         }
 
                         var sellResult = _binance.DoSell(coin, qty).GetAwaiter().GetResult();
