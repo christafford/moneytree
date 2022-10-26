@@ -23,7 +23,7 @@ public class TradeForReal
 
     public void Run()
     {
-        var chartId = 590; //_dbContext.GetBestSimulatedChart();
+        var chartId = _dbContext.GetBestSimulatedChart();
         var chart = _dbContext.Charts.First(x => x.Id == chartId);
         
         Console.WriteLine("Using this chart to guide us");

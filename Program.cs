@@ -65,4 +65,16 @@ if (args.Any(x => x == "--simulator"))
     await scope.ServiceProvider.GetService<Simulator>().Run();
 }
 
-scope.ServiceProvider.GetService<TradeForReal>().Run();
+while (true)
+{
+    try
+    {
+        scope.ServiceProvider.GetService<TradeForReal>().Run();
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine(ex.Message);
+        Console.WriteLine(ex.StackTrace);
+        Console.WriteLine("Restarting...");
+    }
+}
