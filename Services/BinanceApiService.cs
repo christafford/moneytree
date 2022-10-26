@@ -60,7 +60,7 @@ namespace CStafford.MoneyTree.Services
             return symbolsResponse.Data.Select(_mapper.Map<Models.Symbol>);
         }
 
-        public async Task<decimal> GetCashOnHand()
+        public async Task<decimal> GetAsset(string coin)
         {
             var balances = await _client.SpotApi.Account.GetAccountInfoAsync();
 
@@ -69,24 +69,50 @@ namespace CStafford.MoneyTree.Services
                 throw new Exception(balances.Error.Message);
             }
 
-            return balances.Data.Balances.First(x => x.Asset == "USD").Available;
+            return balances.Data.Balances.First(x => x.Asset == coin).Available;
+        }
+
+        public async Task<(string coin, decimal available)> GetPrimary()
+        {
+            var balances = await _client.SpotApi.Account.GetAccountInfoAsync();
+
+            if (balances.Error != null)
+            {
+                throw new Exception(balances.Error.Message);
+            }
+
+            return balances.Data.Balances
+                .Where(x => x.Asset != "USD")
+                .OrderByDescending(x => x.Available)
+                .Select(x => (x.Asset, x.Available))
+                .First();
         }
 
         public async Task<(decimal usdValue, decimal qtyBought)> DoBuy(string coin, decimal usdToSpend)
         {
-            var result = await _client.SpotApi.Trading.PlaceOrderAsync(
-                coin + "USD",
-                OrderSide.Buy,
-                SpotOrderType.Market,
-                quoteQuantity: usdToSpend
-            );
-
-            if (result.Error != null)
+            while (true)
             {
-                throw new Exception($"DoBuy: {usdToSpend.ToString("C")} for {coin + "USD"}: {result.Error.Message}");
-            }
+                var result = await _client.SpotApi.Trading.PlaceOrderAsync(
+                    coin + "USD",
+                    OrderSide.Buy,
+                    SpotOrderType.Market,
+                    quoteQuantity: usdToSpend
+                );
 
-            return (usdToSpend, usdToSpend / result.Data.Price);
+                if (result.Error?.Message.Contains("Account has insufficient balance") ?? false)
+                {
+                    usdToSpend *= 0.99m;
+                    Console.WriteLine($"Insufficient balance - trying again at 1% less: {usdToSpend.ToString("C")}");
+                    continue;
+                }
+                
+                if (result.Error != null)
+                {
+                    throw new Exception($"DoBuy: {usdToSpend.ToString("C")} for {coin + "USD"}: {result.Error.Message}");
+                }
+
+                return (usdToSpend, usdToSpend / result.Data.Price);
+            }
         }
 
         public async Task<(decimal usdValue, decimal qtySold)> DoSell(string coin, decimal qtyToSell)
@@ -100,7 +126,7 @@ namespace CStafford.MoneyTree.Services
 
             if (result.Error != null)
             {
-                throw new Exception($"DoSell: {qtyToSell.ToString("0.#####")} for {coin + "USD"}: {result.Error.Message}");
+                throw new Exception($"DoSell: {qtyToSell} for {coin + "USD"}: {result.Error.Message}");
             }
 
             return (result.Data.Price * qtyToSell, result.Data.Quantity);

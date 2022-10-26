@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using CStafford.MoneyTree.Configuration;
 using CStafford.MoneyTree.Infrastructure;
 using CStafford.MoneyTree.Services;
@@ -29,8 +30,21 @@ public class TradeForReal
         Console.WriteLine(chart.ToString());
         
         var assets = new List<(string symbol, decimal usdInvested, decimal quantityOwned)>();
-        assets.Add(("FORTHUSD", 631, 156.24m));
+        
+        var lastTransaction = ReadLast();
+        if (lastTransaction.action == "Bought")
+        {
+            var primaryWallet = _binance.GetPrimary().GetAwaiter().GetResult();
 
+            if (primaryWallet.coin != lastTransaction.coin)
+            {
+                throw new Exception($"Primary wallet coin is {primaryWallet.coin} - mismatch");
+            }
+
+            assets.Add((lastTransaction.coin, lastTransaction.paidUsd, lastTransaction.qty));
+            Console.WriteLine($"starting with asset {lastTransaction.coin} - {lastTransaction.qty}, paid {lastTransaction.paidUsd}");
+        }
+        
         Log("Starting the machine");
 
         while (true)
@@ -40,9 +54,21 @@ public class TradeForReal
             _downloader.Run().GetAwaiter().GetResult();
             
             var lastEpoch = _dbContext.Ticks.Max(x => x.TickEpoch);
-            var cashOnHand = _binance.GetCashOnHand().Result;
+            var cashOnHand = _binance.GetAsset("USD").Result;
 
             Console.WriteLine($"Cash on hand: {cashOnHand.ToString("C")}");
+
+            if (cashOnHand > 500)
+            {
+                var bnb = _binance.GetAsset("BNB").Result;
+                if (bnb < 10)
+                {
+                    Console.WriteLine("Buying $20 BNB to pay for fees");
+                    _binance.DoBuy("BNB", 20).GetAwaiter().GetResult();
+                    cashOnHand = _binance.GetAsset("USD").Result;
+                    Console.WriteLine($"Cash on hand now: {cashOnHand.ToString("C")}");
+                }
+            }
 
             var computerContext = new ComputerContext(_dbContext);
             computerContext.Init(chart, lastEpoch);
@@ -122,5 +148,35 @@ public class TradeForReal
     {
         Console.WriteLine($"{DateTime.Now.ToString("g")}: {message}");
         File.AppendAllText("/home/chris/code/moneytree/real-trading.log", $"{DateTime.Now.ToString("g")}: {message}\n");
+    }
+
+    private (string coin, string action, decimal qty, decimal paidUsd) ReadLast()
+    {
+        var text = File.ReadAllText("/home/chris/code/moneytree/real-trading.log");
+        var regex = new Regex("(Bought|Sold) ([0-9.]+) of ([A-Z]+) for .?([0-9.]+)");
+
+        var match = regex.Match(text);
+        
+        while (true)
+        {
+            var nextMatch = match.NextMatch();
+            if (nextMatch.Success)
+            {
+                match = nextMatch;
+            }
+            else
+            {
+                break;
+            }
+        }
+        
+        var action = match.Result("$1");
+        var qty = decimal.Parse(match.Result("$2"));
+        var coin = match.Result("$3");
+        var paidUsd = decimal.Parse(match.Result("$4"));
+
+        Console.WriteLine($"Last action was {action} {qty} of {coin} for {paidUsd.ToString("C")}");
+        
+        return (coin, action, qty, paidUsd);
     }
 }
