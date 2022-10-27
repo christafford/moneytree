@@ -130,29 +130,48 @@ public class TradeForReal
 
                     case ActionToTake.Sell:
                         var asset = assets.First(x => x.symbol == actionToTake.relevantSymbol);
-
                         var symbol = _dbContext.Symbols.First(x => x.Name == asset.symbol);
                         var qty = asset.quantityOwned;
+                        (decimal usdValue, decimal qtySold) sellResult;
                         
-                        if (symbol.QuantityStep.HasValue)
-                        {
-                            var numDecimals = 0;
-                            var stepStr = symbol.QuantityStep.Value.ToString();
-                            var decimalPoint = stepStr.IndexOf('.');
-                            
-                            for (var i = 0; i < stepStr.Length - decimalPoint; i++)
+                        while (true)
+                        {  
+                            if (symbol.QuantityStep.HasValue)
                             {
-                                if (stepStr[decimalPoint + i] == '1')
+                                var numDecimals = 0;
+                                var stepStr = symbol.QuantityStep.Value.ToString();
+                                var decimalPoint = stepStr.IndexOf('.');
+                                
+                                for (var i = 0; i < stepStr.Length - decimalPoint; i++)
                                 {
-                                    numDecimals = i;
-                                    break;
+                                    if (stepStr[decimalPoint + i] == '1')
+                                    {
+                                        numDecimals = i;
+                                        break;
+                                    }
                                 }
+
+                                qty = Decimal.Round(qty, numDecimals, MidpointRounding.ToZero);
                             }
 
-                            qty = Decimal.Round(qty, numDecimals, MidpointRounding.ToZero);
+                            try
+                            {
+                                sellResult = _binance.DoSell(coin, qty).GetAwaiter().GetResult();
+                                break;
+                            }
+                            catch (Exception ex)
+                            {
+                                if (ex.Message.Contains("Account has insufficient balance for requested action"))
+                                {
+                                    Log("Insufficient balance, lowering qty by 1%");
+                                    qty = qty * 0.99m;
+                                }
+                                else
+                                {
+                                    throw;
+                                }
+                            }
                         }
-
-                        var sellResult = _binance.DoSell(coin, qty).GetAwaiter().GetResult();
 
                         Log("--------------->");
                         Log($"Sold {sellResult.qtySold.ToString("0.####")} of {coin} for {sellResult.usdValue.ToString("C")}");
