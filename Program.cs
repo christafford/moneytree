@@ -67,21 +67,17 @@ if (args.Any(x => x == "--simulator"))
 while (true)
 {
     var runner = scope.ServiceProvider.GetService<TradeForReal>();
-
     try
     {
-        runner.Run();    
+        runner.Run();
     }
     catch (Exception ex)
     {
-        if (ex.Message.Contains("Primary wallet coin is BNB, last action coin is"))
+        if (ex.StackTrace.Contains("Connection reset by peer."))
         {
-            throw;
+            Console.WriteLine("Connection reset by peer. Restarting...");
+            continue;
         }
-        
-        runner.Log($"ERROR: {ex.Message}");
-        runner.Log($"ERROR: {ex.StackTrace}");
-
-        Console.WriteLine("Restarting...");
+        throw;
     }
 }

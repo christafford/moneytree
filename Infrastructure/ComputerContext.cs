@@ -29,7 +29,7 @@ public class ComputerContext
         var validationEpoch = evaluationEpoch - (chart.DaysSymbolsMustExist * 24 * 60);
 
         _validSymbolIds = _dbContext.FindSymbolsInExistence(validationEpoch)
-            .Where(x => ! new[] { 6, 51, 82}.Contains(x))
+            .Where(x => ! new[] { 50, 6, 51, 82}.Contains(x))
             .ToList();
 
         var volumesTraded = _dbContext.GetSymbolIdToVolume(_firstTickEpoch, _lastTickEpoch);
