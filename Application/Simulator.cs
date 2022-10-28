@@ -36,7 +36,7 @@ public class Simulator
     {
         Console.WriteLine("Setting up charts for simulation runs");
 
-        await EnsureCharts(1000);
+        await EnsureCharts(2000);
         foreach (var chart in _dbContext.Charts.OrderBy(x => Guid.NewGuid()))
         {
             _charts.Enqueue(chart);
@@ -120,10 +120,13 @@ public class Simulator
 
             simulation.DepositFrequency = (DepositFrequencyEnum)random.Next(0, 3);
             
+            // we're limiting simulations to just past 60 days
+            var last60 = (int)((DateTime.Now.Subtract(TimeSpan.FromDays(60)) - Constants.Epoch).TotalMinutes);
+
             var lowerRange = chart.DaysSymbolsMustExist * 24 * 60;
             var availableMinutes = _latestFromStart - lowerRange;
 
-            simulation.StartEpoch = lowerRange + random.Next(0, availableMinutes);
+            simulation.StartEpoch = lowerRange + random.Next(last60, availableMinutes);
             availableMinutes = _latestFromStart - simulation.StartEpoch;
             simulation.EndEpoch = simulation.StartEpoch + random.Next(0, availableMinutes);
             simulation.RunTimeStart = DateTime.Now;

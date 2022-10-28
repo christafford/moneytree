@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Data;
 using System.Data.Common;
+using CStafford.MoneyTree.Configuration;
 using CStafford.MoneyTree.Models;
 using Dapper;
 using Dapper.Contrib.Extensions;
@@ -119,15 +120,15 @@ namespace CStafford.MoneyTree.Infrastructure
 
         public int GetBestSimulatedChart()
         {
-            const string sql = @"select 
-                ChartId,
-                avg(ResultGainPercentage / ((EndEpoch - StartEpoch) / (30 * 24 * 60))) * 100 as AvgGainPerMonth,
-                count(*) as simruns
-                from `Simulations`
-                where StartEpoch > 1159200
-                group by ChartId
-                order by AvgGainPerMonth desc
-                limit 1";
+            var last60 = (int)((DateTime.Now.Subtract(TimeSpan.FromDays(60)) - Constants.Epoch).TotalMinutes);
+            var sql = @"select 
+                        ChartId,
+                        avg(ResultGainPercentage / (EndEpoch - StartEpoch)) slope,
+                        count(*) as simruns
+                        from `Simulations`
+                        where StartEpoch > " + last60 + @"
+                        group by ChartId
+                        order by slope desc";
             
             return _connection.QueryFirst<int>(sql);
         }

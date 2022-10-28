@@ -23,7 +23,7 @@ public class TradeForReal
 
     public void Run()
     {
-        var chartId = 590; // _dbContext.GetBestSimulatedChart();
+        var chartId = _dbContext.GetBestSimulatedChart();
         var chart = _dbContext.Charts.First(x => x.Id == chartId);
         var bnbusdId = _dbContext.Symbols.First(x => x.Name == "BNBUSD").Id;
         
@@ -47,9 +47,16 @@ public class TradeForReal
         }
         
         Log("Starting the machine");
+        var startTime = DateTime.Now;
 
         while (true)
         {
+            if (DateTime.Now - startTime > TimeSpan.FromDays(1))
+            {
+                Log("Restarting to grab new chart");
+                throw new Exception("Restart");
+            }
+
             var startLoop = DateTime.Now;
             Console.WriteLine("Updating ticks");
             _downloader.Run().GetAwaiter().GetResult();

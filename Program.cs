@@ -78,6 +78,12 @@ while (true)
             Console.WriteLine("Connection reset by peer. Restarting...");
             continue;
         }
+
+        if (ex.Message.Contains("Restart"))
+        {
+            continue;
+        }
+
         throw;
     }
 }
